@@ -89,13 +89,31 @@ fn main() {
     window.render_loop(move |mut frame_input| {
         for event in frame_input.events.iter() {
             match *event {
+                Event::MousePress {
+                    button,
+                    position,
+                    modifiers,
+                    handled,
+                } => {
+                    //
+                    match button {
+                        MouseButton::Left => {
+                            //
+                            info!("Left click: {:?}", position);
+                        }
+                        MouseButton::Right => {
+                            //
+                            info!("Right click: {:?}", position);
+                        }
+                        MouseButton::Middle => {}
+                    }
+                }
                 Event::MouseWheel {
                     delta,
                     position,
                     modifiers,
                     handled,
                 } => {
-                    dbg!(delta.1);
                     if delta.1 > 0.0 {
                         win_trans.zoom_in();
                     } else if delta.1 < 0.0 {

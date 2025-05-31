@@ -1,4 +1,5 @@
 use log::info;
+use nalgebra::Vector2;
 
 use crate::allocation::Allocation;
 
@@ -72,5 +73,10 @@ impl TraceGeometry {
             max_size,
             max_time,
         }
+    }
+
+    /// return index of allocation
+    pub fn find_by_pos(&self, pos: Vector2<f32>) -> usize {
+        
     }
 }
