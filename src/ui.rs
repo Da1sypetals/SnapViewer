@@ -1,12 +1,14 @@
 use nalgebra::Vector2;
 use three_d::{vec3, Camera, Viewport};
 
+#[derive(Debug)]
 pub struct WindowTransform {
     pub translate: Vector2<f32>,
     pub zoom: f32,
 
     max_zoom: f32,
-    translate_limits: Vector2<f32>,
+    translate_min: Vector2<f32>,
+    translate_max: Vector2<f32>,
 
     zoom_step: f32,
     translate_step: f32,
@@ -18,7 +20,8 @@ impl WindowTransform {
             translate: Vector2::zeros(),
             zoom: 1.0,
             max_zoom: 8.0,
-            translate_limits: Vector2::new(resolution.0 as f32, resolution.1 as f32),
+            translate_max: Vector2::new(resolution.0 as f32 * 0.5, resolution.1 as f32 * 0.5),
+            translate_min: Vector2::new(resolution.0 as f32 * (-0.5), resolution.1 as f32 * (-0.5)),
             zoom_step: 0.05,     // times
             translate_step: 5.0, // pixels
         }
@@ -29,20 +32,13 @@ impl WindowTransform {
     }
 
     pub fn camera(&self, viewport: Viewport) -> Camera {
-        let pos = vec3(
-            viewport.width as f32 * 0.5 + self.translate.x,
-            viewport.height as f32 * 0.5 + self.translate.y,
-            1.0,
-        );
+        let center_x = viewport.width as f32 * 0.5 + self.translate.x;
+        let center_y = viewport.height as f32 * 0.5 + self.translate.y;
 
         Camera::new_orthographic(
             viewport,
-            pos,
-            vec3(
-                viewport.width as f32 * 0.5,
-                viewport.height as f32 * 0.5,
-                0.0,
-            ),
+            vec3(center_x, center_y, 1.0),
+            vec3(center_x, center_y, 0.0),
             vec3(0.0, 1.0, 0.0),
             // in real world units, NOT PIXELS
             viewport.height as f32 * self.scale(),
@@ -62,10 +58,10 @@ pub enum TranslateDir {
 impl WindowTransform {
     // actions
     pub fn enforce_boundaries(&mut self) {
-        self.translate.x = self.translate.x.max(0.0);
-        self.translate.x = self.translate.x.min(self.translate_limits.x);
-        self.translate.y = self.translate.y.max(0.0);
-        self.translate.y = self.translate.y.min(self.translate_limits.y);
+        self.translate.x = self.translate.x.max(self.translate_min.x);
+        self.translate.x = self.translate.x.min(self.translate_max.x);
+        self.translate.y = self.translate.y.max(self.translate_min.y);
+        self.translate.y = self.translate.y.min(self.translate_max.y);
     }
 
     pub fn zoom_in(&mut self) {
@@ -85,5 +81,6 @@ impl WindowTransform {
         }
 
         self.enforce_boundaries();
+        dbg!(self.translate);
     }
 }

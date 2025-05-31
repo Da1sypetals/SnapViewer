@@ -52,7 +52,7 @@ impl FpsTimer {
     }
 }
 
-pub fn main() {
+fn main() {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Off)
         .filter_module("snapviewer", log::LevelFilter::Info)
