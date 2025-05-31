@@ -26,8 +26,8 @@ impl Transform {
             // column major
             self.scale.x as f32,0.0                ,0.0,self.translate.x as f32,
             0.0                ,self.scale.y as f32,0.0,self.translate.y as f32,
-            0.0                ,0.0                ,0.0,0.0,
-            0.0                ,0.0                ,0.0,0.0,
+            0.0                ,0.0                ,1.0,0.0,
+            0.0                ,0.0                ,0.0,1.0,
         )
         .transpose() // now row major
     }

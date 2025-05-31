@@ -1,6 +1,7 @@
 #![allow(warnings)]
 
 use log::info;
+use nalgebra::Vector2;
 use snapviewer::{
     geometry::{AllocationGeometry, TraceGeometry},
     load::{load_allocations, read_snap_from_jsons, read_snap_from_zip},
@@ -78,7 +79,10 @@ pub fn main() {
         },
     );
 
-    let transform = Transform::identity();
+    let transform = Transform {
+        scale: Vector2::new(0.9, 0.9),
+        translate: Vector2::new(50., 50.),
+    };
 
     // start a timer
     let mut timer = FpsTimer::new();
