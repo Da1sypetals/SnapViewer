@@ -6,10 +6,11 @@ use snapviewer::{
     geometry::{AllocationGeometry, TraceGeometry},
     load::{load_allocations, read_snap_from_jsons, read_snap_from_zip},
     render_data::{RenderData, Transform},
+    ui::{TranslateDir, WindowTransform},
 };
 use three_d::{
-    degrees, vec2, Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry, Gm,
-    Line, Mesh, MouseButton, Rectangle, Srgba, Window, WindowSettings,
+    degrees, vec2, vec3, Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry,
+    Gm, Line, Mesh, MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings,
 };
 
 pub fn load_geom(resolution: (u32, u32)) -> RenderData {
@@ -79,15 +80,12 @@ pub fn main() {
         },
     );
 
-    let transform = Transform {
-        scale: Vector2::new(0.9, 0.9),
-        translate: Vector2::new(50., 50.),
-    };
-
+    let transform = Transform::identity();
+    let mut win_trans = WindowTransform::new(resolution);
     // start a timer
     let mut timer = FpsTimer::new();
 
-    window.render_loop(move |frame_input| {
+    window.render_loop(move |mut frame_input| {
         for event in frame_input.events.iter() {
             if let Event::MousePress {
                 button,
@@ -98,13 +96,17 @@ pub fn main() {
             {}
         }
 
+        win_trans.zoom_in();
+        win_trans.translate(TranslateDir::Right);
+        let cam = win_trans.camera(frame_input.viewport);
+
         mesh.set_transformation(transform.to_mat4());
 
         frame_input
             .screen()
             .clear(ClearState::color_and_depth(1.0, 1.0, 1.0, 1.0, 1.0))
             .render(
-                Camera::new_2d(frame_input.viewport),
+                cam,
                 // line.into_iter()
                 //     .chain(&rectangle)
                 //     .chain(&circle)
