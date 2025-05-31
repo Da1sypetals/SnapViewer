@@ -19,10 +19,10 @@ impl WindowTransform {
         Self {
             translate: Vector2::zeros(),
             zoom: 1.0,
-            max_zoom: 8.0,
+            max_zoom: 24.0,
             translate_max: Vector2::new(resolution.0 as f32 * 0.5, resolution.1 as f32 * 0.5),
             translate_min: Vector2::new(resolution.0 as f32 * (-0.5), resolution.1 as f32 * (-0.5)),
-            zoom_step: 0.05,     // times
+            zoom_step: 0.25,     // times
             translate_step: 5.0, // pixels
         }
     }
@@ -76,11 +76,10 @@ impl WindowTransform {
         match dir {
             TranslateDir::Left => self.translate.x -= self.translate_step,
             TranslateDir::Right => self.translate.x += self.translate_step,
-            TranslateDir::Up => self.translate.y -= self.translate_step,
-            TranslateDir::Down => self.translate.y += self.translate_step,
+            TranslateDir::Up => self.translate.y += self.translate_step,
+            TranslateDir::Down => self.translate.y -= self.translate_step,
         }
 
         self.enforce_boundaries();
-        dbg!(self.translate);
     }
 }

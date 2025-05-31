@@ -1,2 +1,3 @@
-pub fn new_2d(viewport: Viewport) -> Self
-Returns an orthographic camera for viewing 2D content. The camera is placed at the center of the given viewport. The (0, 0) position is at the bottom left corner and the (viewport.width, viewport.height) position is at the top right corner.
+TODO: resolve clock: given a click on the screen: 
+1. compute where the click in world coords
+2. compute which allocation the click is in

@@ -87,17 +87,39 @@ fn main() {
 
     window.render_loop(move |mut frame_input| {
         for event in frame_input.events.iter() {
-            if let Event::MousePress {
-                button,
-                position,
-                modifiers,
-                ..
-            } = *event
-            {}
+            match *event {
+                Event::MouseWheel {
+                    delta,
+                    position,
+                    modifiers,
+                    handled,
+                } => {
+                    dbg!(delta.1);
+                    if delta.1 > 0.0 {
+                        win_trans.zoom_in();
+                    } else if delta.1 < 0.0 {
+                        win_trans.zoom_out();
+                    }
+                }
+                Event::KeyPress {
+                    kind,
+                    modifiers,
+                    handled,
+                } => {
+                    // placeholder
+                    match kind {
+                        three_d::Key::W => win_trans.translate(TranslateDir::Up),
+                        three_d::Key::A => win_trans.translate(TranslateDir::Left),
+                        three_d::Key::S => win_trans.translate(TranslateDir::Down),
+                        three_d::Key::D => win_trans.translate(TranslateDir::Right),
+                        key => {
+                            dbg!(key);
+                        }
+                    }
+                }
+                _ => {}
+            }
         }
-
-        win_trans.zoom_in();
-        win_trans.translate(TranslateDir::Right);
         let cam = win_trans.camera(frame_input.viewport);
 
         mesh.set_transformation(transform.to_mat4());
