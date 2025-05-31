@@ -1,10 +1,7 @@
-use core::alloc;
-
+use crate::geometry::AllocationGeometry;
 use nalgebra::Vector2;
 use rand::Rng;
 use three_d::{CpuMesh, Matrix, Srgba};
-
-use crate::allocations::{Allocation, AllocationGeometry};
 
 /// After transform, [-1,1] x [-1,1] stays in window, others are not displayed.
 #[derive(Clone, Copy, Debug)]
@@ -52,7 +49,7 @@ pub fn sample_colors(n: usize) -> Vec<Srgba> {
         let g = rng.random_range(0..=255);
         let b = rng.random_range(0..=255);
 
-        colors.push(Srgba::new(r, g, b, 0));
+        colors.push(Srgba::new(r, g, b, 255));
     }
 
     colors
