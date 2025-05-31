@@ -1,3 +1,5 @@
+use three_d::{Srgba, Vector3};
+
 /// 64 MB should be large enough to distinguish
 const MEM_SCALE: f64 = (1024 * 1024 * 64) as f64;
 const TIME_SCALE: f64 = 100_000 as f64;
@@ -49,38 +51,5 @@ impl AllocationGeometry {
         self.timesteps.len()
     }
 
-    /// Verts: [x1, y1, z1, x2, y2, z2, ...]
-    /// Every 9 verts elements (3 coords per vert, 3 verts per triangle) forms a triangle.
-    pub fn append_triangles(&self, verts: &mut Vec<f64>) {
-        for i in 0..self.num_steps() - 1 {
-            let this_time = self.timesteps[i];
-            let next_time = self.timesteps[i + 1];
-            let this_lo = self.offsets[i];
-            let next_lo = self.offsets[i + 1];
-            let this_hi = this_lo + self.size;
-            let next_hi = next_lo + self.size;
-
-            // tri 1
-            // bottom-left
-            verts.push(this_time);
-            verts.push(this_lo);
-            // bottom-right
-            verts.push(next_time);
-            verts.push(next_lo);
-            // top-left
-            verts.push(this_time);
-            verts.push(this_hi);
-
-            // tri 2
-            // top-left
-            verts.push(this_time);
-            verts.push(this_hi);
-            // bottom-right
-            verts.push(next_time);
-            verts.push(next_lo);
-            // top-right
-            verts.push(next_time);
-            verts.push(next_hi);
-        }
-    }
+    
 }
