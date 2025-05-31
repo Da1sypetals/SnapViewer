@@ -5,5 +5,6 @@ edition = "2021"
 
 [dependencies]
 nalgebra = "0.33.2"
+rand = "0.9.1"
 thiserror = "2.0.12"
 three-d = "0.18.2"

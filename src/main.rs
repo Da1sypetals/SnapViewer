@@ -21,22 +21,23 @@ pub fn make_geom() -> RenderData {
 
     let g3 = AllocationGeometry {
         timesteps: vec![200.0, 300.0, 600.0, 800.0, 1100.0],
-        offsets: vec![500.0, 570.0, 520.0, 550.0, 500.0],
-        size: 100.0,
+        offsets: vec![200.0, 270.0, 220.0, 250.0, 200.0],
+        size: 200.0,
     };
 
-    let colors = vec![
-        Srgba::new(50, 50, 200, 150),
-        Srgba::new(200, 50, 50, 150),
-        Srgba::new(50, 200, 50, 100),
-    ];
+    // let colors = vec![
+    //     Srgba::new(50, 50, 200, 150),
+    //     Srgba::new(200, 50, 50, 150),
+    //     Srgba::new(50, 200, 50, 100),
+    // ];
 
-    RenderData::from_allocations(vec![g1, g2, g3], colors)
+    // RenderData::with_colors(vec![g1, g2, g3], colors)
+    RenderData::from_allocations(vec![g1, g2, g3])
 }
 
 pub fn main() {
     let window = Window::new(WindowSettings {
-        title: "Shapes 2D!".to_string(),
+        title: "Tomi Viewer".to_string(),
         max_size: Some((1280, 720)),
         ..Default::default()
     })
