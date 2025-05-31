@@ -76,7 +76,31 @@ impl TraceGeometry {
     }
 
     /// return index of allocation
-    pub fn find_by_pos(&self, pos: Vector2<f32>) -> usize {
-        
+    /// FIXME: this is a fucking naive implementation
+    pub fn find_by_pos(&self, pos: Vector2<f32>) -> Option<usize> {
+        let x = pos.x as f64;
+        let y = pos.y as f64;
+        for (i, alloc) in self.allocations.iter().enumerate() {
+            if x < alloc.offsets[0] || x > *alloc.offsets.last().unwrap() {
+                continue;
+            }
+            let idx = match alloc.offsets.binary_search_by(|&e| e.total_cmp(&x)) {
+                Ok(i) => i,
+                Err(i) => i,
+            };
+            let left_idx = idx - 1;
+            let right_idx = idx;
+
+            todo!()
+        }
+
+        None
     }
+}
+
+#[test]
+fn test() {
+    let a = [1, 2, 3, 5, 6];
+    let i = a.binary_search(&4);
+    dbg!(i);
 }
