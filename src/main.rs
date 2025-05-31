@@ -4,7 +4,7 @@ use log::info;
 use snapviewer::{
     geometry::{AllocationGeometry, TraceGeometry},
     load::{load_allocations, read_snap_from_jsons, read_snap_from_zip},
-    render_data::RenderData,
+    render_data::{RenderData, Transform},
 };
 use three_d::{
     degrees, vec2, Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry, Gm,
@@ -28,13 +28,35 @@ pub fn load_geom(resolution: (u32, u32)) -> RenderData {
     RenderData::from_allocations(tracegeom.allocations)
 }
 
+pub struct FpsTimer {
+    pub timer: std::time::Instant,
+    pub frame: u64,
+}
+
+impl FpsTimer {
+    pub fn new() -> Self {
+        Self {
+            timer: std::time::Instant::now(),
+            frame: 0,
+        }
+    }
+    pub fn tick(&mut self) {
+        self.frame += 1;
+        if self.timer.elapsed().as_secs() > 1 {
+            info!("FPS: {}", self.frame);
+            self.timer = std::time::Instant::now();
+            self.frame = 0;
+        }
+    }
+}
+
 pub fn main() {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Off)
         .filter_module("snapviewer", log::LevelFilter::Info)
         .init();
 
-    let resolution = (1280, 720);
+    let resolution = (2400, 1080);
 
     let window = Window::new(WindowSettings {
         title: "Tomi Viewer".to_string(),
@@ -46,7 +68,7 @@ pub fn main() {
     let scale_factor = window.device_pixel_ratio();
     let (width, height) = window.size();
 
-    let rdata = load_geom(resolution);
+    let rdata = load_geom((resolution.0, (resolution.1 as f32 * 0.9) as u32));
     let cpumesh = rdata.to_cpu_mesh();
     let mut mesh = Gm::new(
         Mesh::new(&context, &cpumesh),
@@ -55,6 +77,11 @@ pub fn main() {
             ..Default::default()
         },
     );
+
+    let transform = Transform::identity();
+
+    // start a timer
+    let mut timer = FpsTimer::new();
 
     window.render_loop(move |frame_input| {
         for event in frame_input.events.iter() {
@@ -66,6 +93,9 @@ pub fn main() {
             } = *event
             {}
         }
+
+        mesh.set_transformation(transform.to_mat4());
+
         frame_input
             .screen()
             .clear(ClearState::color_and_depth(1.0, 1.0, 1.0, 1.0, 1.0))
@@ -79,7 +109,7 @@ pub fn main() {
                 &[],
             );
 
-        println!("render!");
+        timer.tick();
 
         FrameOutput::default()
     });

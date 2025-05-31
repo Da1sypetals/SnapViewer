@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::allocation::Allocation;
 
 pub struct AllocationGeometry {
@@ -28,6 +30,7 @@ pub struct TraceGeometry {
 
 impl TraceGeometry {
     pub fn from_allocations(allocations: &Vec<Allocation>, resolution: (u32, u32)) -> Self {
+        info!("Transforming allocations memory snap to geometries...");
         let max_size = allocations
             .iter()
             .map(|a| *a.offsets.iter().max().unwrap() + a.size) // maximum offset + self size
@@ -51,16 +54,16 @@ impl TraceGeometry {
                 timesteps: alloc
                     .timesteps
                     .iter()
-                    .map(|t| dbg!(*t as f64 / max_time * resolution_x))
+                    .map(|t| *t as f64 / max_time * resolution_x)
                     .collect(),
                 // normalize offsets
                 offsets: alloc
                     .offsets
                     .iter()
-                    .map(|off| dbg!(*off as f64 / max_size * resolution_y))
+                    .map(|off| *off as f64 / max_size * resolution_y)
                     .collect(),
                 // normalize size
-                size: alloc.size as f64 / max_size,
+                size: alloc.size as f64 / max_size * resolution_y,
             })
             .collect();
 

@@ -1,4 +1,5 @@
 use crate::geometry::AllocationGeometry;
+use log::info;
 use nalgebra::Vector2;
 use rand::Rng;
 use three_d::{CpuMesh, Matrix, Srgba};
@@ -36,8 +37,6 @@ pub struct RenderData {
     pub verts: Vec<three_d::Vector3<f64>>,
 
     pub colors: Vec<Srgba>,
-
-    pub transform: Transform,
 }
 
 pub fn sample_colors(n: usize) -> Vec<Srgba> {
@@ -49,7 +48,7 @@ pub fn sample_colors(n: usize) -> Vec<Srgba> {
         let g = rng.random_range(0..=255);
         let b = rng.random_range(0..=255);
 
-        colors.push(Srgba::new(r, g, b, 255));
+        colors.push(Srgba::new(r, g, b, 30));
     }
 
     colors
@@ -64,6 +63,7 @@ impl RenderData {
     /// TODO: sample random colors
     /// colors: one per allocation
     pub fn with_colors(allocations: Vec<AllocationGeometry>, colors: Vec<Srgba>) -> Self {
+        info!("Converting geometries to render-able mesh...");
         let mut verts = Vec::new();
         let mut vert_colors = Vec::new();
 
@@ -107,7 +107,6 @@ impl RenderData {
         Self {
             verts,
             colors: vert_colors,
-            transform: Transform::identity(),
         }
     }
 
