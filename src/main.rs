@@ -16,11 +16,12 @@ use three_d::{
 pub fn load_geom(resolution: (u32, u32)) -> RenderData {
     info!("Reading snapshot from disk...");
     // let rawsnap = read_snap_from_zip("snap/transformer.zip").unwrap();
-    let rawsnap = read_snap_from_jsons(
-        "/home/da1sypetals/dev/torch-snapshot/snapshots/allocations.json",
-        "/home/da1sypetals/dev/torch-snapshot/snapshots/elements.json",
-    )
-    .unwrap();
+    let rawsnap = read_snap_from_zip("snap/small.zip").unwrap();
+    // let rawsnap = read_snap_from_jsons(
+    //     "/home/da1sypetals/dev/torch-snapshot/snapshots/allocations.json",
+    //     "/home/da1sypetals/dev/torch-snapshot/snapshots/elements.json",
+    // )
+    // .unwrap();
 
     info!("Loading allocations from zip...");
     let allocs = load_allocations(rawsnap).unwrap();
