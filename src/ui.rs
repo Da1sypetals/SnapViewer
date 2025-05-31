@@ -8,6 +8,7 @@ pub struct WindowTransform {
 
     resolution: (u32, u32),
 
+    min_zoom: f32,
     max_zoom: f32,
     translate_min: Vector2<f32>,
     translate_max: Vector2<f32>,
@@ -22,6 +23,7 @@ impl WindowTransform {
             translate: Vector2::zeros(),
             zoom: 1.0,
             resolution,
+            min_zoom: 0.75,
             max_zoom: 24.0,
             translate_max: Vector2::new(resolution.0 as f32 * 0.5, resolution.1 as f32 * 0.5),
             translate_min: Vector2::new(resolution.0 as f32 * (-0.5), resolution.1 as f32 * (-0.5)),
@@ -85,7 +87,7 @@ impl WindowTransform {
     }
 
     pub fn zoom_out(&mut self) {
-        self.zoom = 1.0f32.max(self.zoom - self.zoom_step);
+        self.zoom = self.min_zoom.max(self.zoom - self.zoom_step);
     }
 
     pub fn translate(&mut self, dir: TranslateDir) {
