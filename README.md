@@ -19,3 +19,13 @@ python parse_dump.py -p snapshots/large/transformer.pickle -o ./dumpjson -d 0 -z
 
 # TODO:
 ...
+
+# Notes
+Run local for me: 
+```sh
+cargo run -- -z snap/small.zip --res 2400 1080
+```
+For very large snapshots, run on release:
+```sh
+cargo run -r -- -z snap/transformer.zip --log-info --res 2400 1080 
+```

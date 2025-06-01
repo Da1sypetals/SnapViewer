@@ -24,7 +24,7 @@ impl WindowTransform {
             zoom: 1.0,
             resolution,
             min_zoom: 0.75,
-            max_zoom: 36.0,
+            max_zoom: 36.0, // TODO: update to max_timesteps / 100
             translate_max: Vector2::new(resolution.0 as f32 * 0.5, resolution.1 as f32 * 0.5),
             translate_min: Vector2::new(resolution.0 as f32 * (-0.5), resolution.1 as f32 * (-0.5)),
             zoom_step: 0.16, // everytime * (1.0 + zoom_step)
@@ -37,7 +37,7 @@ impl WindowTransform {
     }
 
     pub fn translate_step(&self) -> f32 {
-        self.translate_step_multiplier / self.zoom
+        self.translate_step_multiplier / self.zoom.sqrt()
     }
 
     pub fn camera(&self, viewport: Viewport) -> Camera {
