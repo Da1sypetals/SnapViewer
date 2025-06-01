@@ -1,6 +1,6 @@
 # Snapviewer
 
-Display large snapshots smoother! Navigate with WASD and mouse scroll.
+Display large snapshots smoother! 
 
 ![alt text](trace.png)
 
@@ -9,10 +9,9 @@ Display large snapshots smoother! Navigate with WASD and mouse scroll.
 python parse_dump.py -p snapshots/large/transformer.pickle -o ./dumpjson -d 0 -z
 ```
 
-TODO: resolve click
-- given a click on the screen: 
-  1. compute where the click in world coords
-  2. compute which allocation the click is in
+## Use
+- Navigate with WASD and mouse scroll.
+- Click on the allocation, and its details (size, call stack, etc.) will show in stdout;
 
-
-TODO: show call stack
+# TODO:
+...
