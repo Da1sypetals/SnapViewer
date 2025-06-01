@@ -50,11 +50,9 @@ impl RenderLoop {
     }
 
     pub fn run(self) {
-        let resolution = (2400, 1080);
-
         let window = Window::new(WindowSettings {
             title: "Tomi Viewer".to_string(),
-            max_size: Some(resolution),
+            max_size: Some(self.resolution),
             ..Default::default()
         })
         .unwrap();
@@ -74,7 +72,7 @@ impl RenderLoop {
         );
 
         let transform = Transform::identity();
-        let mut win_trans = WindowTransform::new(resolution);
+        let mut win_trans = WindowTransform::new(self.resolution);
         // start a timer
         let mut timer = FpsTimer::new();
 

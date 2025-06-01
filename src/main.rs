@@ -37,7 +37,8 @@ fn cli() -> (SnapType, (u32, u32)) {
                 .action(ArgAction::Set)
                 .num_args(2) // Exactly two u32 integers
                 .value_names(["WIDTH", "HEIGHT"]) // Names for the two values
-                .value_parser(clap::value_parser!(u32)), // Ensure values are parsed as u32
+                .value_parser(clap::value_parser!(u32)) // Ensure values are parsed as u32
+                .required(true), // Make the --res argument mandatory
         )
         .get_matches();
 
@@ -60,20 +61,11 @@ fn cli() -> (SnapType, (u32, u32)) {
         std::process::exit(1);
     };
 
-    let resolution = if let Some(res_values) = matches.get_many::<u32>("res") {
-        let values: Vec<u32> = res_values.copied().collect();
-        if values.len() == 2 {
-            (values[0], values[1])
-        } else {
-            // This case should ideally not be reached if num_args(2) and value_parser(u32) work as expected
-            // but it's good for robustness.
-            eprintln!("Invalid resolution format. Please provide two integers for --res (e.g., --res 1920 1080).");
-            std::process::exit(1);
-        }
-    } else {
-        // Default resolution if --res is not provided
-        (0, 0) // Or any other default you deem appropriate
-    };
+    // Since --res is now required, we can unwrap safely or use a direct get.
+    // get_many will always return Some now because the argument is required.
+    let res_values = matches.get_many::<u32>("res").unwrap();
+    let values: Vec<u32> = res_values.copied().collect();
+    let resolution = (values[0], values[1]);
 
     (snap_type, resolution)
 }
