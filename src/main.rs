@@ -1,17 +1,14 @@
+#![allow(warnings)]
+
 use clap::{Arg, ArgAction, Command};
 use log::info;
 use snapviewer::{
     geometry::TraceGeometry,
-    load::{load_allocations, read_snap_from_zip},
-    render_loop::render_loop,
+    load::{load_allocations, read_snap, read_snap_from_zip, SnapType},
+    render_loop::RenderLoop,
 };
 
-enum CliArg {
-    Json { alloc: String, elem: String },
-    Zip { path: String },
-}
-
-fn cli() -> CliArg {
+fn cli() -> (SnapType, (u32, u32)) {
     let matches = Command::new("tomi: pyTOrch Memory Inspection tool")
         .arg(
             Arg::new("zip")
@@ -33,28 +30,52 @@ fn cli() -> CliArg {
                 .value_name("JSON_PATHS")
                 .conflicts_with("zip"), // Cannot be used with --zip
         )
-        // You could also use an ArgGroup for mutual exclusivity, but conflicts_with is more direct here.
-        // If you had more complex "either/or" scenarios, ArgGroup would be powerful.
+        .arg(
+            Arg::new("res")
+                .long("res")
+                .help("Specify screen resolution as <WIDTH> <HEIGHT>")
+                .action(ArgAction::Set)
+                .num_args(2) // Exactly two u32 integers
+                .value_names(["WIDTH", "HEIGHT"]) // Names for the two values
+                .value_parser(clap::value_parser!(u32)), // Ensure values are parsed as u32
+        )
         .get_matches();
 
-    if let Some(zip_paths) = matches.get_many::<String>("zip") {
+    let snap_type = if let Some(zip_paths) = matches.get_many::<String>("zip") {
         let path: Vec<_> = zip_paths.map(|s| s.as_str()).collect();
-        CliArg::Zip {
+        SnapType::Zip {
             path: path[0].to_string(),
         }
     } else if let Some(json_paths) = matches.get_many::<String>("json") {
         let paths: Vec<_> = json_paths.map(|s| s.as_str()).collect();
 
-        CliArg::Json {
-            alloc: paths[0].to_string(),
-            elem: paths[1].to_string(),
+        SnapType::Json {
+            allocations_path: paths[0].to_string(),
+            elements_path: paths[1].to_string(),
         }
     } else {
         eprintln!(
-            "No valid arguments provided. Use --zip <PATH> or --json <ALLOC_PATH> <ELEM_PATH>."
+            "No valid snap arguments provided. Use --zip <PATH> or --json <ALLOC_PATH> <ELEM_PATH>."
         );
         std::process::exit(1);
-    }
+    };
+
+    let resolution = if let Some(res_values) = matches.get_many::<u32>("res") {
+        let values: Vec<u32> = res_values.copied().collect();
+        if values.len() == 2 {
+            (values[0], values[1])
+        } else {
+            // This case should ideally not be reached if num_args(2) and value_parser(u32) work as expected
+            // but it's good for robustness.
+            eprintln!("Invalid resolution format. Please provide two integers for --res (e.g., --res 1920 1080).");
+            std::process::exit(1);
+        }
+    } else {
+        // Default resolution if --res is not provided
+        (0, 0) // Or any other default you deem appropriate
+    };
+
+    (snap_type, resolution)
 }
 
 pub fn load_geom(resolution: (u32, u32)) -> TraceGeometry {
@@ -73,6 +94,27 @@ pub fn load_geom(resolution: (u32, u32)) -> TraceGeometry {
     TraceGeometry::from_allocations(&allocs, resolution)
 }
 
+fn app() -> anyhow::Result<()> {
+    pretty_env_logger::formatted_timed_builder()
+        .filter_level(log::LevelFilter::Off)
+        .filter_module("snapviewer", log::LevelFilter::Info)
+        .init();
+
+    let (snap_type, resolution) = cli();
+
+    let allocs = read_snap(snap_type)?;
+
+    let render_loop = RenderLoop::from_allocations(allocs, resolution);
+
+    render_loop.run();
+
+    Ok(())
+}
+
 fn main() {
-    render_loop(load_geom);
+    if let Err(e) = app() {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
+    // else quit normally
 }

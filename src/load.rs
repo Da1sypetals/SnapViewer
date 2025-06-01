@@ -26,6 +26,26 @@ pub struct RawSnap {
     pub(crate) elements: String,
 }
 
+/// Reads snap data based on the snap type.
+///
+/// ## Arguments
+/// * `snap_type` - The type of snap to read (Zip or other future types)
+/// * `path` - The path to the snap data
+///
+/// ## Returns
+/// A `Result` containing the raw snap data or an error
+pub fn read_snap(snap_type: SnapType) -> anyhow::Result<Vec<Allocation>> {
+    let rawsnap = match snap_type {
+        SnapType::Zip { path } => read_snap_from_zip(&path),
+        SnapType::Json {
+            allocations_path,
+            elements_path,
+        } => read_snap_from_jsons(&allocations_path, &elements_path),
+    }?;
+
+    load_allocations(rawsnap)
+}
+
 /// Unzips "allocations.json" and "elements.json" from a zip file into memory.
 ///
 /// ## Arguments
