@@ -1,10 +1,12 @@
 # Snapviewer
 
-Display large snapshots smoothly! 
+A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_viz. Display large snapshots smoothly! 
 
 ![alt text](snapviewer.gif)
 
 ## Preprocess
+- Record memory snapsnot for your model. You may refer to [documentation](https://docs.pytorch.org/docs/stable/torch_cuda_memory.html);
+- Convert the snapshot to zip format with `parse_dump.py`.
 ```sh
 python parse_dump.py -p snapshots/large/transformer.pickle -o ./dumpjson -d 0 -z
 ```
