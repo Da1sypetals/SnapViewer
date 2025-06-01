@@ -24,13 +24,14 @@ impl AllocationGeometry {
 }
 
 pub struct TraceGeometry {
+    pub raw_allocs: Vec<Allocation>,
     pub allocations: Vec<AllocationGeometry>,
     pub max_size: f64,
     pub max_time: f64,
 }
 
 impl TraceGeometry {
-    pub fn from_allocations(allocations: &Vec<Allocation>, resolution: (u32, u32)) -> Self {
+    pub fn from_allocations(allocations: Vec<Allocation>, resolution: (u32, u32)) -> Self {
         info!("Transforming allocations memory snap to geometries...");
         let max_size = allocations
             .iter()
@@ -69,6 +70,7 @@ impl TraceGeometry {
             .collect();
 
         Self {
+            raw_allocs: allocations,
             allocations: geometries,
             max_size,
             max_time,
@@ -118,5 +120,9 @@ impl TraceGeometry {
 
         info!("Find by pos: failed");
         None
+    }
+
+    pub fn allocation_info(&self, idx: usize) -> String {
+        self.raw_allocs[idx].to_string()
     }
 }

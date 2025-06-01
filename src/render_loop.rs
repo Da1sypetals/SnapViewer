@@ -44,7 +44,7 @@ pub struct RenderLoop {
 impl RenderLoop {
     pub fn from_allocations(allocations: Vec<Allocation>, resolution: (u32, u32)) -> Self {
         Self {
-            trace_geom: TraceGeometry::from_allocations(&allocations, resolution),
+            trace_geom: TraceGeometry::from_allocations(allocations, resolution),
             resolution,
         }
     }
@@ -94,8 +94,14 @@ impl RenderLoop {
                                     cursor_world_pos.x, cursor_world_pos.y
                                 );
 
-                                let alloc = self.trace_geom.find_by_pos(cursor_world_pos);
-                                info!("Find by pos results: alloc id: {:?}", alloc);
+                                // try to find allocation by cursor position
+                                let alloc_idx = self.trace_geom.find_by_pos(cursor_world_pos);
+                                info!("Find by pos results: alloc id: {:?}", alloc_idx);
+
+                                // if we found an allocation at cursor position
+                                if let Some(idx) = alloc_idx {
+                                    println!("{}", self.trace_geom.allocation_info(idx));
+                                }
                             }
                             MouseButton::Right => {
                                 let cursor_world_pos = win_trans.screen2world(position.into());
