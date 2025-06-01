@@ -2,7 +2,7 @@
 
 Display large snapshots smoother! 
 
-![alt text](trace.png)
+![alt text](snapviewer.gif)
 
 ## Preprocess
 ```sh
