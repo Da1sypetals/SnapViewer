@@ -1,18 +1,9 @@
-#![allow(warnings)]
-
-use clap::{Arg, ArgAction, ArgGroup, Command};
+use clap::{Arg, ArgAction, Command};
 use log::info;
-use nalgebra::Vector2;
 use snapviewer::{
-    geometry::{AllocationGeometry, TraceGeometry},
-    load::{load_allocations, read_snap_from_jsons, read_snap_from_zip},
-    render_data::{RenderData, Transform},
+    geometry::TraceGeometry,
+    load::{load_allocations, read_snap_from_zip},
     render_loop::render_loop,
-    ui::{TranslateDir, WindowTransform},
-};
-use three_d::{
-    degrees, vec2, vec3, Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry,
-    Gm, Line, Mesh, MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings,
 };
 
 enum CliArg {
