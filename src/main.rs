@@ -70,22 +70,6 @@ fn cli() -> (SnapType, (u32, u32)) {
     (snap_type, resolution)
 }
 
-pub fn load_geom(resolution: (u32, u32)) -> TraceGeometry {
-    info!("Reading snapshot from disk...");
-    // let rawsnap = read_snap_from_zip("snap/transformer.zip").unwrap();
-    let rawsnap = read_snap_from_zip("snap/small.zip").unwrap();
-    // let rawsnap = read_snap_from_jsons(
-    //     "/home/da1sypetals/dev/torch-snapshot/snapshots/allocations.json",
-    //     "/home/da1sypetals/dev/torch-snapshot/snapshots/elements.json",
-    // )
-    // .unwrap();
-
-    info!("Loading allocations from zip...");
-    let allocs = load_allocations(rawsnap).unwrap();
-
-    TraceGeometry::from_allocations(&allocs, resolution)
-}
-
 fn app() -> anyhow::Result<()> {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Off)

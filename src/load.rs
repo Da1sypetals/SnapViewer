@@ -1,11 +1,8 @@
 use crate::allocation::{Allocation, ElementData, RawAllocationData};
 use log::info;
-use serde::Deserialize;
-use std::error::Error;
 use std::fs;
 use std::fs::File;
-use std::io::{self, Read};
-use std::path::Path;
+use std::io::Read;
 use zip::ZipArchive;
 
 #[derive(Debug)]

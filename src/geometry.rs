@@ -120,10 +120,3 @@ impl TraceGeometry {
         None
     }
 }
-
-#[test]
-fn test() {
-    let a = [1, 2, 3, 5, 6];
-    let i = a.binary_search(&4);
-    dbg!(i);
-}
