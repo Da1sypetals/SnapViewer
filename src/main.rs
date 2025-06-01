@@ -99,11 +99,17 @@ fn main() {
                     match button {
                         MouseButton::Left => {
                             //
-                            info!("Left click: {:?}", position);
+                            info!(
+                                "Left click world pos: {:?}",
+                                win_trans.screen2world(position.into())
+                            );
                         }
                         MouseButton::Right => {
                             //
-                            info!("Right click: {:?}", position);
+                            info!(
+                                "Right click world pos: {:?}",
+                                win_trans.screen2world(position.into())
+                            );
                         }
                         MouseButton::Middle => {}
                     }

@@ -24,10 +24,10 @@ impl WindowTransform {
             zoom: 1.0,
             resolution,
             min_zoom: 0.75,
-            max_zoom: 24.0,
+            max_zoom: 36.0,
             translate_max: Vector2::new(resolution.0 as f32 * 0.5, resolution.1 as f32 * 0.5),
             translate_min: Vector2::new(resolution.0 as f32 * (-0.5), resolution.1 as f32 * (-0.5)),
-            zoom_step: 0.25,     // times
+            zoom_step: 0.16,     // times
             translate_step: 5.0, // pixels
         }
     }
@@ -52,17 +52,18 @@ impl WindowTransform {
         )
     }
 
-    pub fn screen2world(&self, screen_pos: (u32, u32)) -> Vector2<f32> {
-        let screen_pos = (screen_pos.0 as i32, screen_pos.1 as i32);
-        let center = (
-            (self.resolution.0 / 2) as i32,
-            (self.resolution.1 / 2) as i32,
+    pub fn screen2world(&self, screen_pos: (f32, f32)) -> Vector2<f32> {
+        let center = Vector2::new(
+            (self.resolution.0 / 2) as f32,
+            (self.resolution.1 / 2) as f32,
         );
-        let rel_center = (screen_pos.0 - center.0, screen_pos.1 - center.1);
+        let rel_center: Vector2<f32> = Vector2::new(screen_pos.0, screen_pos.1) - center;
         let scale = self.scale();
-        let rel_world = Vector2::new(rel_center.0 as f32 * scale, rel_center.1 as f32 * scale);
+        let rel_world = rel_center * scale;
 
-        self.translate + rel_world
+        center
+        + self.translate // center translate relative to  (w/2, h/2)
+        + rel_world
     }
 }
 
@@ -83,11 +84,11 @@ impl WindowTransform {
     }
 
     pub fn zoom_in(&mut self) {
-        self.zoom = self.max_zoom.min(self.zoom + self.zoom_step);
+        self.zoom = self.max_zoom.min(self.zoom * (1.0 + self.zoom_step));
     }
 
     pub fn zoom_out(&mut self) {
-        self.zoom = self.min_zoom.max(self.zoom - self.zoom_step);
+        self.zoom = self.min_zoom.max(self.zoom * (1.0 - self.zoom_step));
     }
 
     pub fn translate(&mut self, dir: TranslateDir) {
