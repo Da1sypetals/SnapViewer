@@ -13,7 +13,7 @@ use three_d::{
     Gm, Line, Mesh, MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings,
 };
 
-pub fn load_geom(resolution: (u32, u32)) -> RenderData {
+pub fn load_geom(resolution: (u32, u32)) -> TraceGeometry {
     info!("Reading snapshot from disk...");
     // let rawsnap = read_snap_from_zip("snap/transformer.zip").unwrap();
     let rawsnap = read_snap_from_zip("snap/small.zip").unwrap();
@@ -26,9 +26,7 @@ pub fn load_geom(resolution: (u32, u32)) -> RenderData {
     info!("Loading allocations from zip...");
     let allocs = load_allocations(rawsnap).unwrap();
 
-    let tracegeom = TraceGeometry::from_allocations(&allocs, resolution);
-
-    RenderData::from_allocations(tracegeom.allocations)
+    TraceGeometry::from_allocations(&allocs, resolution)
 }
 
 pub struct FpsTimer {
@@ -71,7 +69,9 @@ fn main() {
     let scale_factor = window.device_pixel_ratio();
     let (width, height) = window.size();
 
-    let rdata = load_geom((resolution.0, (resolution.1 as f32 * 0.9) as u32));
+    let trace_geom = load_geom(resolution);
+    let rdata = RenderData::from_allocations(&trace_geom.allocations);
+
     let cpumesh = rdata.to_cpu_mesh();
     let mut mesh = Gm::new(
         Mesh::new(&context, &cpumesh),
@@ -95,20 +95,23 @@ fn main() {
                     modifiers,
                     handled,
                 } => {
-                    //
+                    // rustfmt don't eliminate by brace
                     match button {
                         MouseButton::Left => {
-                            //
+                            let cursor_world_pos = win_trans.screen2world(position.into());
                             info!(
-                                "Left click world pos: {:?}",
-                                win_trans.screen2world(position.into())
+                                "Left click world pos: ({}, {})",
+                                cursor_world_pos.x, cursor_world_pos.y
                             );
+
+                            let alloc = trace_geom.find_by_pos(cursor_world_pos);
+                            info!("Find by pos results: alloc id: {:?}", alloc);
                         }
                         MouseButton::Right => {
-                            //
+                            let cursor_world_pos = win_trans.screen2world(position.into());
                             info!(
-                                "Right click world pos: {:?}",
-                                win_trans.screen2world(position.into())
+                                "Right click world pos: ({}, {})",
+                                cursor_world_pos.x, cursor_world_pos.y
                             );
                         }
                         MouseButton::Middle => {}

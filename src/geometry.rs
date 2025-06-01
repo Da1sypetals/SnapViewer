@@ -78,22 +78,46 @@ impl TraceGeometry {
     /// return index of allocation
     /// FIXME: this is a fucking naive implementation
     pub fn find_by_pos(&self, pos: Vector2<f32>) -> Option<usize> {
+        info!("Find by pos: world pos {}", pos);
         let x = pos.x as f64;
         let y = pos.y as f64;
-        for (i, alloc) in self.allocations.iter().enumerate() {
+        for (ialloc, alloc) in self.allocations.iter().enumerate() {
+            // simple culling: check if x is in range of allocation, if not, position cannot be in this allocation
             if x < alloc.offsets[0] || x > *alloc.offsets.last().unwrap() {
                 continue;
             }
+
+            // find index of x in timesteps
             let idx = match alloc.offsets.binary_search_by(|&e| e.total_cmp(&x)) {
                 Ok(i) => i,
                 Err(i) => i,
             };
+
+            // find the interval index of x in timesteps
             let left_idx = idx - 1;
             let right_idx = idx;
 
-            todo!()
+            // get the time of the left and right interval
+            let left_time = alloc.timesteps[left_idx];
+            let right_time = alloc.timesteps[right_idx];
+
+            let left_lo = alloc.offsets[left_idx];
+            let right_lo = alloc.offsets[right_idx];
+            let left_hi = alloc.offsets[left_idx + 1];
+            let right_hi = alloc.offsets[right_idx + 1];
+
+            // lerp ratio
+            let t = (x - left_time) / (right_time - left_time);
+            let lo = left_lo + (right_lo - left_lo) * t;
+            let hi = left_hi + (right_hi - left_hi) * t;
+
+            if lo <= y && y <= hi {
+                info!("Find by pos: ok");
+                return Some(ialloc);
+            }
         }
 
+        info!("Find by pos: failed");
         None
     }
 }

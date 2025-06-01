@@ -35,7 +35,6 @@ impl Transform {
 
 pub struct RenderData {
     pub verts: Vec<three_d::Vector3<f64>>,
-
     pub colors: Vec<Srgba>,
 }
 
@@ -55,14 +54,14 @@ pub fn sample_colors(n: usize) -> Vec<Srgba> {
 }
 
 impl RenderData {
-    pub fn from_allocations(allocations: Vec<AllocationGeometry>) -> Self {
+    pub fn from_allocations(allocations: &Vec<AllocationGeometry>) -> Self {
         let colors = sample_colors(allocations.len());
         Self::with_colors(allocations, colors)
     }
 
     /// TODO: sample random colors
     /// colors: one per allocation
-    pub fn with_colors(allocations: Vec<AllocationGeometry>, colors: Vec<Srgba>) -> Self {
+    pub fn with_colors(allocations: &Vec<AllocationGeometry>, colors: Vec<Srgba>) -> Self {
         info!("Converting geometries to render-able mesh...");
         let mut verts = Vec::new();
         let mut vert_colors = Vec::new();
@@ -110,10 +109,10 @@ impl RenderData {
         }
     }
 
-    pub fn to_cpu_mesh(self) -> CpuMesh {
+    pub fn to_cpu_mesh(&self) -> CpuMesh {
         CpuMesh {
-            positions: three_d::Positions::F64(self.verts),
-            colors: Some(self.colors),
+            positions: three_d::Positions::F64(self.verts.clone()),
+            colors: Some(self.colors.clone()),
             indices: three_d::Indices::None,
             normals: None,
             tangents: None,
