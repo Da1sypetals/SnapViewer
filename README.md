@@ -1,6 +1,6 @@
 # Snapviewer
 
-Display large snapshots smoother! 
+Display large snapshots smoothly! 
 
 ![alt text](snapviewer.gif)
 
