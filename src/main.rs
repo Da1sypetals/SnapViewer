@@ -1,17 +1,70 @@
 #![allow(warnings)]
 
+use clap::{Arg, ArgAction, ArgGroup, Command};
 use log::info;
 use nalgebra::Vector2;
 use snapviewer::{
     geometry::{AllocationGeometry, TraceGeometry},
     load::{load_allocations, read_snap_from_jsons, read_snap_from_zip},
     render_data::{RenderData, Transform},
+    render_loop::render_loop,
     ui::{TranslateDir, WindowTransform},
 };
 use three_d::{
     degrees, vec2, vec3, Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry,
     Gm, Line, Mesh, MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings,
 };
+
+enum CliArg {
+    Json { alloc: String, elem: String },
+    Zip { path: String },
+}
+
+fn cli() -> CliArg {
+    let matches = Command::new("tomi: pyTOrch Memory Inspection tool")
+        .arg(
+            Arg::new("zip")
+                .short('z')
+                .long("zip")
+                .help("Load snap from a .zip file")
+                .action(ArgAction::Set)
+                .num_args(1) // Exactly one path
+                .value_name("ZIP_PATH")
+                .conflicts_with("json"), // Cannot be used with --json
+        )
+        .arg(
+            Arg::new("json")
+                .short('j')
+                .long("json")
+                .help("Load snap from allocations.json and elements.json files")
+                .action(ArgAction::Set)
+                .num_args(2) // Exactly two paths
+                .value_name("JSON_PATHS")
+                .conflicts_with("zip"), // Cannot be used with --zip
+        )
+        // You could also use an ArgGroup for mutual exclusivity, but conflicts_with is more direct here.
+        // If you had more complex "either/or" scenarios, ArgGroup would be powerful.
+        .get_matches();
+
+    if let Some(zip_paths) = matches.get_many::<String>("zip") {
+        let path: Vec<_> = zip_paths.map(|s| s.as_str()).collect();
+        CliArg::Zip {
+            path: path[0].to_string(),
+        }
+    } else if let Some(json_paths) = matches.get_many::<String>("json") {
+        let paths: Vec<_> = json_paths.map(|s| s.as_str()).collect();
+
+        CliArg::Json {
+            alloc: paths[0].to_string(),
+            elem: paths[1].to_string(),
+        }
+    } else {
+        eprintln!(
+            "No valid arguments provided. Use --zip <PATH> or --json <ALLOC_PATH> <ELEM_PATH>."
+        );
+        std::process::exit(1);
+    }
+}
 
 pub fn load_geom(resolution: (u32, u32)) -> TraceGeometry {
     info!("Reading snapshot from disk...");
@@ -29,144 +82,6 @@ pub fn load_geom(resolution: (u32, u32)) -> TraceGeometry {
     TraceGeometry::from_allocations(&allocs, resolution)
 }
 
-pub struct FpsTimer {
-    pub timer: std::time::Instant,
-    pub frame: u64,
-}
-
-impl FpsTimer {
-    pub fn new() -> Self {
-        Self {
-            timer: std::time::Instant::now(),
-            frame: 0,
-        }
-    }
-    pub fn tick(&mut self) {
-        self.frame += 1;
-        if self.timer.elapsed().as_secs() > 1 {
-            info!("FPS: {}", self.frame);
-            self.timer = std::time::Instant::now();
-            self.frame = 0;
-        }
-    }
-}
-
 fn main() {
-    pretty_env_logger::formatted_timed_builder()
-        .filter_level(log::LevelFilter::Off)
-        .filter_module("snapviewer", log::LevelFilter::Info)
-        .init();
-
-    let resolution = (2400, 1080);
-
-    let window = Window::new(WindowSettings {
-        title: "Tomi Viewer".to_string(),
-        max_size: Some(resolution),
-        ..Default::default()
-    })
-    .unwrap();
-    let context = window.gl();
-    let scale_factor = window.device_pixel_ratio();
-    let (width, height) = window.size();
-
-    let trace_geom = load_geom(resolution);
-    let rdata = RenderData::from_allocations(&trace_geom.allocations);
-
-    let cpumesh = rdata.to_cpu_mesh();
-    let mut mesh = Gm::new(
-        Mesh::new(&context, &cpumesh),
-        ColorMaterial {
-            color: Srgba::WHITE, // colors are mixed (component-wise multiplied)
-            ..Default::default()
-        },
-    );
-
-    let transform = Transform::identity();
-    let mut win_trans = WindowTransform::new(resolution);
-    // start a timer
-    let mut timer = FpsTimer::new();
-
-    window.render_loop(move |mut frame_input| {
-        for event in frame_input.events.iter() {
-            match *event {
-                Event::MousePress {
-                    button,
-                    position,
-                    modifiers,
-                    handled,
-                } => {
-                    // rustfmt don't eliminate by brace
-                    match button {
-                        MouseButton::Left => {
-                            let cursor_world_pos = win_trans.screen2world(position.into());
-                            info!(
-                                "Left click world pos: ({}, {})",
-                                cursor_world_pos.x, cursor_world_pos.y
-                            );
-
-                            let alloc = trace_geom.find_by_pos(cursor_world_pos);
-                            info!("Find by pos results: alloc id: {:?}", alloc);
-                        }
-                        MouseButton::Right => {
-                            let cursor_world_pos = win_trans.screen2world(position.into());
-                            info!(
-                                "Right click world pos: ({}, {})",
-                                cursor_world_pos.x, cursor_world_pos.y
-                            );
-                        }
-                        MouseButton::Middle => {}
-                    }
-                }
-                Event::MouseWheel {
-                    delta,
-                    position,
-                    modifiers,
-                    handled,
-                } => {
-                    if delta.1 > 0.0 {
-                        win_trans.zoom_in();
-                    } else if delta.1 < 0.0 {
-                        win_trans.zoom_out();
-                    }
-                }
-                Event::KeyPress {
-                    kind,
-                    modifiers,
-                    handled,
-                } => {
-                    // placeholder
-                    match kind {
-                        three_d::Key::W => win_trans.translate(TranslateDir::Up),
-                        three_d::Key::A => win_trans.translate(TranslateDir::Left),
-                        three_d::Key::S => win_trans.translate(TranslateDir::Down),
-                        three_d::Key::D => win_trans.translate(TranslateDir::Right),
-                        key => {
-                            dbg!(key);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        let cam = win_trans.camera(frame_input.viewport);
-
-        mesh.set_transformation(transform.to_mat4());
-
-        frame_input
-            .screen()
-            .clear(ClearState::color_and_depth(1.0, 1.0, 1.0, 1.0, 1.0))
-            .render(
-                cam,
-                // line.into_iter()
-                //     .chain(&rectangle)
-                //     .chain(&circle)
-                //     .chain(&mesh),
-                mesh.into_iter(),
-                &[],
-            );
-
-        timer.tick();
-
-        FrameOutput::default()
-    });
+    render_loop(load_geom);
 }

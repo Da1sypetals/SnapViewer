@@ -78,17 +78,16 @@ impl TraceGeometry {
     /// return index of allocation
     /// FIXME: this is a fucking naive implementation
     pub fn find_by_pos(&self, pos: Vector2<f32>) -> Option<usize> {
-        info!("Find by pos: world pos {}", pos);
-        let x = pos.x as f64;
-        let y = pos.y as f64;
+        let x = pos.x as f64; // time
+        let y = pos.y as f64; // memory
         for (ialloc, alloc) in self.allocations.iter().enumerate() {
             // simple culling: check if x is in range of allocation, if not, position cannot be in this allocation
-            if x < alloc.offsets[0] || x > *alloc.offsets.last().unwrap() {
+            if x < alloc.timesteps[0] || x > *alloc.timesteps.last().unwrap() {
                 continue;
             }
 
             // find index of x in timesteps
-            let idx = match alloc.offsets.binary_search_by(|&e| e.total_cmp(&x)) {
+            let idx = match alloc.timesteps.binary_search_by(|&e| e.total_cmp(&x)) {
                 Ok(i) => i,
                 Err(i) => i,
             };
@@ -103,8 +102,8 @@ impl TraceGeometry {
 
             let left_lo = alloc.offsets[left_idx];
             let right_lo = alloc.offsets[right_idx];
-            let left_hi = alloc.offsets[left_idx + 1];
-            let right_hi = alloc.offsets[right_idx + 1];
+            let left_hi = alloc.offsets[left_idx] + alloc.size;
+            let right_hi = alloc.offsets[right_idx] + alloc.size;
 
             // lerp ratio
             let t = (x - left_time) / (right_time - left_time);
