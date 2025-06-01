@@ -18,7 +18,7 @@ python parse_dump.py -p snapshots/large/transformer.pickle -o ./dumpjson -d 0 -z
 
 
 # TODO:
-...
+- Embed this in a web page via WASM.
 
 # Notes
 Run local for me: 
