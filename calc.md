@@ -10,3 +10,9 @@ inverse index: 每个三角形是哪个alloc产生出来的
 对应函数：
 screen2world
 find_by_pos
+
+---
+
+1. 将mouse screen pos -> mouse world pos
+2. 根据距离ratio，插值出新的center在哪里 world Pos
+3. 移动center

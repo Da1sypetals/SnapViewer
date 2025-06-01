@@ -28,9 +28,60 @@ pub struct Allocation {
     pub peak_timestamps: Vec<u64>, // reaches its peak at these timestamps
 }
 
+// impl Display for Allocation {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+//         writeln!(f, "Allocation Details:")?;
+//         writeln!(f, "├── Size: {}", format_bytes(self.size))?;
+//         writeln!(f, "├── Peak Memory: {}", format_bytes(self.peak_mem))?;
+//         writeln!(f, "├── Peak Timestamps: {:?}", self.peak_timestamps)?;
+//         writeln!(
+//             f,
+//             "├── Timesteps: start {}, stop {}",
+//             self.timesteps.first().unwrap_or(&0),
+//             self.timesteps.last().unwrap_or(&0)
+//         )?;
+//         writeln!(f, "├── Offsets: omitted")?;
+//         // Or print offsets if desired:
+//         // writeln!(f, "├── Offsets: {:?}", self.offsets)?;
+
+//         writeln!(f, "└── Callstack:")?;
+//         if self.callstack.is_empty() {
+//             writeln!(f, "    └── (empty callstack)")?;
+//         } else {
+//             for (i, frame) in self.callstack.iter().enumerate() {
+//                 let prefix = if i == self.callstack.len() - 1 {
+//                     "    └──"
+//                 } else {
+//                     "    ├──"
+//                 };
+//                 writeln!(f, "{} ({}){}", prefix, i, frame)?;
+//             }
+//         }
+
+//         Ok(())
+//     }
+// }
+
 impl Display for Allocation {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         writeln!(f, "Allocation Details:")?;
+
+        // Callstack first
+        writeln!(f, "├── Callstack:")?;
+        if self.callstack.is_empty() {
+            writeln!(f, "    └── (empty callstack)")?;
+        } else {
+            for (i, frame) in self.callstack.iter().enumerate() {
+                let prefix = if i == self.callstack.len() - 1 {
+                    "│   └──"
+                } else {
+                    "│   ├──"
+                };
+                writeln!(f, "{} ({}){}", prefix, i, frame)?;
+            }
+        }
+
+        // Other details in their original order
         writeln!(f, "├── Size: {}", format_bytes(self.size))?;
         writeln!(f, "├── Peak Memory: {}", format_bytes(self.peak_mem))?;
         writeln!(f, "├── Peak Timestamps: {:?}", self.peak_timestamps)?;
@@ -40,23 +91,9 @@ impl Display for Allocation {
             self.timesteps.first().unwrap_or(&0),
             self.timesteps.last().unwrap_or(&0)
         )?;
-        writeln!(f, "├── Offsets: omitted")?;
+        writeln!(f, "└── Offsets: omitted")?;
         // Or print offsets if desired:
-        // writeln!(f, "├── Offsets: {:?}", self.offsets)?;
-
-        writeln!(f, "└── Callstack:")?;
-        if self.callstack.is_empty() {
-            writeln!(f, "    └── (empty callstack)")?;
-        } else {
-            for (i, frame) in self.callstack.iter().enumerate() {
-                let prefix = if i == self.callstack.len() - 1 {
-                    "    └──"
-                } else {
-                    "    ├──"
-                };
-                writeln!(f, "{} ({}){}", prefix, i, frame)?;
-            }
-        }
+        // writeln!(f, "└── Offsets: {:?}", self.offsets)?;
 
         Ok(())
     }

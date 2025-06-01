@@ -14,7 +14,7 @@ pub struct WindowTransform {
     translate_max: Vector2<f32>,
 
     zoom_step: f32,
-    translate_step: f32,
+    translate_step_multiplier: f32,
 }
 
 impl WindowTransform {
@@ -27,13 +27,17 @@ impl WindowTransform {
             max_zoom: 36.0,
             translate_max: Vector2::new(resolution.0 as f32 * 0.5, resolution.1 as f32 * 0.5),
             translate_min: Vector2::new(resolution.0 as f32 * (-0.5), resolution.1 as f32 * (-0.5)),
-            zoom_step: 0.16,     // times
-            translate_step: 5.0, // pixels
+            zoom_step: 0.16, // everytime * (1.0 + zoom_step)
+            translate_step_multiplier: 24.0,
         }
     }
 
     pub fn scale(&self) -> f32 {
         self.zoom.recip()
+    }
+
+    pub fn translate_step(&self) -> f32 {
+        self.translate_step_multiplier / self.zoom
     }
 
     pub fn camera(&self, viewport: Viewport) -> Camera {
@@ -83,20 +87,47 @@ impl WindowTransform {
         self.translate.y = self.translate.y.min(self.translate_max.y);
     }
 
-    pub fn zoom_in(&mut self) {
-        self.zoom = self.max_zoom.min(self.zoom * (1.0 + self.zoom_step));
+    pub fn update_zoom(&mut self, new_zoom: f32, screen_pos: (f32, f32)) {
+        let cursor_world_pos = self.screen2world(screen_pos);
+        let cursor_to_center = self.translate
+            + Vector2::new(
+                self.resolution.0 as f32 / 2.0,
+                self.resolution.1 as f32 / 2.0,
+            )
+            - cursor_world_pos;
+
+        let prev_zoom = self.zoom;
+        self.zoom = new_zoom;
+
+        let new_center = cursor_world_pos + (self.zoom / prev_zoom).recip() * cursor_to_center
+            - Vector2::new(
+                self.resolution.0 as f32 / 2.0,
+                self.resolution.1 as f32 / 2.0,
+            );
+
+        self.translate = new_center;
     }
 
-    pub fn zoom_out(&mut self) {
-        self.zoom = self.min_zoom.max(self.zoom * (1.0 - self.zoom_step));
+    pub fn zoom_in(&mut self, screen_pos: (f32, f32)) {
+        self.update_zoom(
+            self.max_zoom.min(self.zoom * (1.0 + self.zoom_step)),
+            screen_pos,
+        );
+    }
+
+    pub fn zoom_out(&mut self, screen_pos: (f32, f32)) {
+        self.update_zoom(
+            self.min_zoom.max(self.zoom * (1.0 - self.zoom_step)),
+            screen_pos,
+        );
     }
 
     pub fn translate(&mut self, dir: TranslateDir) {
         match dir {
-            TranslateDir::Left => self.translate.x -= self.translate_step,
-            TranslateDir::Right => self.translate.x += self.translate_step,
-            TranslateDir::Up => self.translate.y += self.translate_step,
-            TranslateDir::Down => self.translate.y -= self.translate_step,
+            TranslateDir::Left => self.translate.x -= self.translate_step(),
+            TranslateDir::Right => self.translate.x += self.translate_step(),
+            TranslateDir::Up => self.translate.y += self.translate_step(),
+            TranslateDir::Down => self.translate.y -= self.translate_step(),
         }
 
         self.enforce_boundaries();

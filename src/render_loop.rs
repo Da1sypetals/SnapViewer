@@ -100,7 +100,11 @@ impl RenderLoop {
 
                                 // if we found an allocation at cursor position
                                 if let Some(idx) = alloc_idx {
-                                    println!("{}", self.trace_geom.allocation_info(idx));
+                                    println!(
+                                        "Allocation #{}\n{}",
+                                        idx,
+                                        self.trace_geom.allocation_info(idx)
+                                    );
                                 }
                             }
                             MouseButton::Right => {
@@ -120,9 +124,9 @@ impl RenderLoop {
                         handled,
                     } => {
                         if delta.1 > 0.0 {
-                            win_trans.zoom_in();
+                            win_trans.zoom_in(position.into());
                         } else if delta.1 < 0.0 {
-                            win_trans.zoom_out();
+                            win_trans.zoom_out(position.into());
                         }
                     }
                     Event::KeyPress {
