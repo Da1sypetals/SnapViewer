@@ -52,6 +52,7 @@ impl RenderLoop {
     pub fn run(self) {
         let window = Window::new(WindowSettings {
             title: "Tomi Viewer".to_string(),
+            min_size: self.resolution,
             max_size: Some(self.resolution),
             ..Default::default()
         })
