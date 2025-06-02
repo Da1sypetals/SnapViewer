@@ -6,6 +6,7 @@ use crate::{
     load::{load_allocations, read_snap_from_jsons, read_snap_from_zip, SnapType},
     render_data::{RenderData, Transform},
     ui::{TranslateDir, WindowTransform},
+    utils::{format_bytes, format_bytes_precision},
 };
 use log::info;
 use nalgebra::Vector2;
@@ -116,6 +117,15 @@ impl RenderLoop {
                                 info!(
                                     "Right click world pos: ({}, {})",
                                     cursor_world_pos.x, cursor_world_pos.y
+                                );
+
+                                // print memory position at cursor
+                                println!(
+                                    "Cursor is at memory: {}",
+                                    format_bytes_precision(
+                                        self.trace_geom.world2memory(cursor_world_pos.y,),
+                                        3
+                                    )
                                 );
                             }
                             MouseButton::Middle => {}

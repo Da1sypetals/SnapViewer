@@ -28,6 +28,7 @@ pub struct TraceGeometry {
     pub allocations: Vec<AllocationGeometry>,
     pub max_size: f64,
     pub max_time: f64,
+    resolution: (u32, u32),
 }
 
 impl TraceGeometry {
@@ -74,6 +75,7 @@ impl TraceGeometry {
             allocations: geometries,
             max_size,
             max_time,
+            resolution,
         }
     }
 
@@ -124,5 +126,10 @@ impl TraceGeometry {
 
     pub fn allocation_info(&self, idx: usize) -> String {
         self.raw_allocs[idx].to_string()
+    }
+
+    /// y_world: y position (world coords)
+    pub fn world2memory(&self, y_world: f32) -> u64 {
+        (y_world as f64 * self.max_size / self.resolution.1 as f64) as u64
     }
 }
