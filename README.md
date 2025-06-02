@@ -15,7 +15,7 @@ python parse_dump.py -p snapshots/large/transformer.pickle -o ./dumpjson -d 0 -z
 - See `cargo run -- --help`. Please note that CLI options `-z` and `-j` conflicts.
 - Navigate with WASD and mouse scroll.
 - Left click on the allocation, and its details (size, call stack, etc.) will show in stdout;
-- Right click on the allocation, and (memory the cursor's y coords is at) will show in stdout.
+- Right click anywhere and (memory the cursor's $y$ coords is at) will show in stdout.
 
 
 
