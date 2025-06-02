@@ -74,6 +74,8 @@ impl RenderLoop {
 
         let transform = Transform::identity();
         let mut win_trans = WindowTransform::new(self.resolution);
+        win_trans.set_zoom_limits(0.75, self.trace_geom.max_time as f32 / 100.0);
+
         // start a timer
         let mut timer = FpsTimer::new();
 

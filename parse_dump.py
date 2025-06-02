@@ -2,9 +2,9 @@ import json
 import os
 import pickle
 import sys
-from tqdm import tqdm
 
 from icecream import ic
+from tqdm import tqdm
 
 
 def process_alloc_data(device_trace, plot_segments=False):
