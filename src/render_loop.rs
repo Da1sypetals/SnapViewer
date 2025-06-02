@@ -28,8 +28,9 @@ impl FpsTimer {
     }
     pub fn tick(&mut self) {
         self.frame += 1;
-        if self.timer.elapsed().as_secs() > 1 {
-            info!("FPS: {}", self.frame);
+        let elapsed = self.timer.elapsed().as_secs_f64();
+        if elapsed >= 1.0 {
+            info!("FPS: {:.2}", self.frame as f64 / elapsed as f64);
             self.timer = std::time::Instant::now();
             self.frame = 0;
         }
