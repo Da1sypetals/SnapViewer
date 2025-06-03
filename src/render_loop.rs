@@ -155,7 +155,7 @@ impl RenderLoop {
                             three_d::Key::S => win_trans.translate(TranslateDir::Down),
                             three_d::Key::D => win_trans.translate(TranslateDir::Right),
                             key => {
-                                dbg!(key);
+                                info!("{:?},", key);
                             }
                         }
                     }

@@ -3,6 +3,14 @@ name = "snapviewer"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[[bin]]
+name = "text-example"
+path = "src/ticks/text_example.rs"
+
 [dependencies]
 anyhow = "1.0.98"
 clap = "4.5.39"
@@ -13,6 +21,6 @@ rand = "0.9.1"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
-three-d = "0.18.2"
+three-d = { version = "0.18.2", features = ["text"] }
 toml = "0.8.22"
 zip = "4.0.0"

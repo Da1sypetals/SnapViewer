@@ -16,3 +16,6 @@ find_by_pos
 1. 将mouse screen pos -> mouse world pos
 2. 根据距离ratio，插值出新的center在哪里 world Pos
 3. 移动center
+---
+
+three-d的 TextGenerator.generate的set_transform是以字的左下角为中心，
