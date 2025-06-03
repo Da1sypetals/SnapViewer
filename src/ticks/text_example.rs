@@ -53,7 +53,7 @@ fn main() {
     println!("Text prepare ok");
 
     // Render loop
-    window.render_loop(move |mut frame_input| {
+    window.render_loop(move |frame_input| {
         // println!("frame");
         camera.set_viewport(frame_input.viewport);
         frame_input

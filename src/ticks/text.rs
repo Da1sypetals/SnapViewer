@@ -1,4 +1,4 @@
-use crate::utils::{format_bytes, format_bytes_precision, generate_ticks};
+use crate::utils::{format_bytes_precision, generate_ticks};
 use nalgebra::Vector2;
 use three_d::{
     ColorMaterial, Context, Gm, Mat4, Mesh, Srgba, TextGenerator, TextLayoutOptions, Vector3,
