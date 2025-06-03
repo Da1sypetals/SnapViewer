@@ -3,13 +3,6 @@ name = "snapviewer"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "main"
-path = "src/main.rs"
-
-[[bin]]
-name = "text-example"
-path = "src/ticks/text_example.rs"
 
 [dependencies]
 anyhow = "1.0.98"

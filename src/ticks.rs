@@ -45,7 +45,7 @@ impl<'a> TickGenerator<'a> {
                 let text = format!("—— {}", format_bytes_precision(bytes as i64, 4));
                 self.generate_text_mesh(&text, y_ratio, scale, screen_center_world, context)
             })
-            .collect::<Vec<_>>()
+            .collect()
     }
 }
 
