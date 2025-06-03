@@ -82,8 +82,8 @@ impl Display for Allocation {
         }
 
         // Other details in their original order
-        writeln!(f, "├── Size: {}", format_bytes(self.size))?;
-        writeln!(f, "├── Peak Memory: {}", format_bytes(self.peak_mem))?;
+        writeln!(f, "├── Size: {}", format_bytes(self.size as i64))?;
+        writeln!(f, "├── Peak Memory: {}", format_bytes(self.peak_mem as i64))?;
         writeln!(f, "├── Peak Timestamps: {:?}", self.peak_timestamps)?;
         writeln!(
             f,

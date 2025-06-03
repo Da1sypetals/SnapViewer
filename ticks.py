@@ -40,12 +40,12 @@ def generate_ticks(a, b, interval):
 def memory_ticks(a, b, min_ticks=8):
     interval = choose_interval(a, b, min_ticks)
     ticks = generate_ticks(a, b, interval)
-    return [(t, format_size(t)) for t in ticks]
+    return ticks
 
 
 if __name__ == "__main__":
-    A = int(input("请输入起始内存大小："))
-    B = int(input("请输入结束内存大小："))
-    ticks = memory_ticks(A, B)
-    for t, label in ticks:
-        print(f"{label} ({t} bytes)")
+    ticks = memory_ticks(1244, 23509823)
+    print(ticks)
+
+    ticks = memory_ticks(121244, 239823)
+    print(ticks)

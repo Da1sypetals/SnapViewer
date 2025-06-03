@@ -51,6 +51,14 @@ impl WindowTransform {
         self.translate_step_multiplier / self.zoom.sqrt()
     }
 
+    pub fn ytop_world(&self) -> f32 {
+        self.center.y + (self.resolution.1 / 2) as f32 * self.scale()
+    }
+
+    pub fn ybot_world(&self) -> f32 {
+        self.center.y - (self.resolution.1 / 2) as f32 * self.scale()
+    }
+
     pub fn camera(&self, viewport: Viewport) -> Camera {
         Camera::new_orthographic(
             viewport,

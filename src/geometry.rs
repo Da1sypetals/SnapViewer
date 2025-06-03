@@ -129,7 +129,8 @@ impl TraceGeometry {
     }
 
     /// y_world: y position (world coords)
-    pub fn world2memory(&self, y_world: f32) -> u64 {
-        (y_world as f64 * self.max_size / self.resolution.1 as f64) as u64
+    /// Allow negative memory
+    pub fn world2memory(&self, y_world: f32) -> i64 {
+        (y_world as f64 * self.max_size / self.resolution.1 as f64) as i64
     }
 }

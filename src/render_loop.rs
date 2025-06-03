@@ -5,6 +5,7 @@ use crate::{
     geometry::{AllocationGeometry, TraceGeometry},
     load::{load_allocations, read_snap_from_jsons, read_snap_from_zip, SnapType},
     render_data::{RenderData, Transform},
+    ticks::text::{self, TickGenerator},
     ui::{TranslateDir, WindowTransform},
     utils::{format_bytes, format_bytes_precision},
 };
@@ -78,6 +79,8 @@ impl RenderLoop {
         let mut win_trans = WindowTransform::new(self.resolution);
         win_trans.set_zoom_limits(0.75, self.trace_geom.max_time as f32 / 100.0);
 
+        let tickgen = TickGenerator::jbmono(self.resolution, 20.0);
+
         // start a timer
         let mut timer = FpsTimer::new();
 
@@ -123,7 +126,7 @@ impl RenderLoop {
                                 println!(
                                     "Cursor is at memory: {}",
                                     format_bytes_precision(
-                                        self.trace_geom.world2memory(cursor_world_pos.y,),
+                                        self.trace_geom.world2memory(cursor_world_pos.y),
                                         3
                                     )
                                 );
@@ -166,6 +169,16 @@ impl RenderLoop {
 
             mesh.set_transformation(transform.to_mat4());
 
+            let high_bytes = self.trace_geom.world2memory(win_trans.ytop_world());
+            let low_bytes = self.trace_geom.world2memory(win_trans.ybot_world());
+            let ticks = tickgen.generate_memory_ticks(
+                low_bytes,
+                high_bytes,
+                win_trans.scale(),
+                win_trans.center,
+                &context,
+            );
+
             frame_input
                 .screen()
                 .clear(ClearState::color_and_depth(1.0, 1.0, 1.0, 1.0, 1.0))
@@ -175,7 +188,7 @@ impl RenderLoop {
                     //     .chain(&rectangle)
                     //     .chain(&circle)
                     //     .chain(&mesh),
-                    mesh.into_iter(),
+                    ticks.iter().chain(std::iter::once(&mesh)),
                     &[],
                 );
 

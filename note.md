@@ -19,3 +19,8 @@ find_by_pos
 ---
 
 three-d的 TextGenerator.generate的set_transform是以字的左下角为中心，
+
+---
+cursor -> win trans -> y world coords
+y world coords -> trace geom -> memory (bytes)
+memory -> ticks struct -> ticks (list of memory bytes) -> render
