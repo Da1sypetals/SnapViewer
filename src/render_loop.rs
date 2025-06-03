@@ -5,7 +5,7 @@ use crate::{
     geometry::{AllocationGeometry, TraceGeometry},
     load::{load_allocations, read_snap_from_jsons, read_snap_from_zip, SnapType},
     render_data::{RenderData, Transform},
-    ticks::text::{self, TickGenerator},
+    ticks::{self, TickGenerator},
     ui::{TranslateDir, WindowTransform},
     utils::{format_bytes, format_bytes_precision},
 };
