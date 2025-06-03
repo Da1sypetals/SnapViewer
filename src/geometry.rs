@@ -1,7 +1,8 @@
+use crate::allocation::Allocation;
+use ahash::AHasher;
 use log::info;
 use nalgebra::Vector2;
-
-use crate::allocation::Allocation;
+use std::hash::{Hash, Hasher};
 
 pub struct AllocationGeometry {
     pub timesteps: Vec<f64>,
@@ -51,22 +52,24 @@ impl TraceGeometry {
 
         let geometries = allocations
             .iter()
-            .map(|alloc| AllocationGeometry {
-                // normalized
-                // normalize timesteps
-                timesteps: alloc
-                    .timesteps
-                    .iter()
-                    .map(|t| *t as f64 / max_time * resolution_x)
-                    .collect(),
-                // normalize offsets
-                offsets: alloc
-                    .offsets
-                    .iter()
-                    .map(|off| *off as f64 / max_size * resolution_y)
-                    .collect(),
-                // normalize size
-                size: alloc.size as f64 / max_size * resolution_y,
+            .map(|alloc| {
+                AllocationGeometry {
+                    // normalized
+                    // normalize timesteps
+                    timesteps: alloc
+                        .timesteps
+                        .iter()
+                        .map(|t| *t as f64 / max_time * resolution_x)
+                        .collect(),
+                    // normalize offsets
+                    offsets: alloc
+                        .offsets
+                        .iter()
+                        .map(|off| *off as f64 / max_size * resolution_y)
+                        .collect(),
+                    // normalize size
+                    size: alloc.size as f64 / max_size * resolution_y,
+                }
             })
             .collect();
 

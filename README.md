@@ -32,3 +32,6 @@ For very large snapshots, run on release:
 ```sh
 cargo run -r -- -z snap/transformer.zip --log-info --res 2400 1080 
 ```
+
+- allocation with the same call stack should NOT be merged into same color
+- 

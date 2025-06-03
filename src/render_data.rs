@@ -1,7 +1,9 @@
-use crate::geometry::AllocationGeometry;
+use crate::{
+    geometry::{AllocationGeometry, TraceGeometry},
+    utils::{sample_callstack_colors, sample_colors},
+};
 use log::info;
 use nalgebra::Vector2;
-use rand::Rng;
 use three_d::{CpuMesh, Matrix, Srgba};
 
 /// After transform, [-1,1] x [-1,1] stays in window, others are not displayed.
@@ -38,25 +40,24 @@ pub struct RenderData {
     pub colors: Vec<Srgba>,
 }
 
-pub fn sample_colors(n: usize) -> Vec<Srgba> {
-    let mut rng = rand::rng();
-    let mut colors = Vec::with_capacity(n);
-
-    for _ in 0..n {
-        let r = rng.random_range(0..=255);
-        let g = rng.random_range(0..=255);
-        let b = rng.random_range(0..=255);
-
-        colors.push(Srgba::new(r, g, b, 30));
-    }
-
-    colors
-}
-
 impl RenderData {
-    pub fn from_allocations(allocations: &Vec<AllocationGeometry>) -> Self {
-        let colors = sample_colors(allocations.len());
-        Self::with_colors(allocations, colors)
+    pub fn create(trace_geom: &TraceGeometry) -> Self {
+        info!("Merging colors for allocations with same callstack...");
+
+        let color2idxs =
+            sample_callstack_colors(trace_geom.raw_allocs.iter().map(|a| &a.callstack));
+        let mut colors: Vec<Option<Srgba>> = vec![None; trace_geom.allocations.len()];
+
+        for (color, idxs) in color2idxs {
+            for i in idxs {
+                colors[i] = Some(color);
+            }
+        }
+
+        Self::with_colors(
+            &trace_geom.allocations,
+            colors.into_iter().map(|c| c.unwrap()).collect(),
+        )
     }
 
     /// TODO: sample random colors

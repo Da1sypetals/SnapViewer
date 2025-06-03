@@ -63,7 +63,7 @@ impl RenderLoop {
         let scale_factor = window.device_pixel_ratio();
         let (width, height) = window.size();
 
-        let rdata = RenderData::from_allocations(&self.trace_geom.allocations);
+        let rdata = RenderData::create(&self.trace_geom);
 
         let cpumesh = rdata.to_cpu_mesh();
         let mut mesh = Gm::new(
