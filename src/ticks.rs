@@ -4,6 +4,8 @@ use three_d::{
     ColorMaterial, Context, Gm, Mat4, Mesh, Srgba, TextGenerator, TextLayoutOptions, Vector3,
 };
 
+pub const TICKS_FLOAT_Z: f32 = 0.01;
+
 pub struct TickGenerator<'a> {
     pub generator: TextGenerator<'a>,
     pub resolution: (u32, u32),
@@ -79,9 +81,15 @@ impl<'a> TickGenerator<'a> {
             },
         );
 
-        let transform =
-            Mat4::from_translation(Vector3::new(font_pos_world.x, font_pos_world.y, 0.0))
-                * Mat4::from_scale(scale);
+        let scale_transform = Mat4::from_scale(scale);
+        let translate_transform = Mat4::from_translation(Vector3::new(
+            font_pos_world.x,
+            font_pos_world.y,
+            TICKS_FLOAT_Z,
+        ));
+
+        // first scale, then translate
+        let transform = translate_transform * scale_transform;
 
         gm.set_transformation(transform);
 
