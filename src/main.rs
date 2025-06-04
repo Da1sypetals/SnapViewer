@@ -4,13 +4,13 @@ use clap::{Arg, ArgAction, Command};
 use log::info;
 use snapviewer::{
     geometry::TraceGeometry,
-    load::{load_allocations, read_snap, read_snap_from_zip, SnapType},
+    load::{load_allocations, read_snap, read_snap_from_zip},
     render_loop::RenderLoop,
 };
 // Define the structure to hold all parsed command-line arguments
 #[derive(Debug)]
 pub struct CliArg {
-    pub snap_type: SnapType,
+    pub path: String,
     pub resolution: (u32, u32),
     pub log_level: log::LevelFilter, // Added the log_info field
 }
@@ -18,26 +18,14 @@ pub struct CliArg {
 pub fn cli() -> CliArg {
     let matches = Command::new("tomi: pyTOrch Memory Inspection tool")
         .arg(
-            Arg::new("zip")
-                .short('z')
-                .long("zip")
-                .help("Load snap from a .zip file")
+            Arg::new("path")
+                .short('p')
+                .long("path")
+                .help("Path of the .zip file to load snapshot from")
                 .action(ArgAction::Set) // Action to set the value
                 .num_args(1) // Exactly one path
                 .value_name("ZIP_PATH")
-                .value_parser(clap::value_parser!(String)) // Parse value as String
-                .conflicts_with("json"), // Cannot be used with --json
-        )
-        .arg(
-            Arg::new("json")
-                .short('j')
-                .long("json")
-                .help("Load snap from allocations.json and elements.json files")
-                .action(ArgAction::Set) // Action to set the value
-                .num_args(2) // Exactly two paths
-                .value_name("JSON_PATHS")
-                .value_parser(clap::value_parser!(String)) // Parse values as String
-                .conflicts_with("zip"), // Cannot be used with --zip
+                .value_parser(clap::value_parser!(String)), // Parse value as String
         )
         .arg(
             Arg::new("res")
@@ -58,22 +46,11 @@ pub fn cli() -> CliArg {
         .get_matches();
 
     // Determine the SnapType based on provided arguments
-    let snap_type = if let Some(zip_path) = matches.get_one::<String>("zip") {
-        SnapType::Zip {
-            path: zip_path.clone(), // Clone String
-        }
-    } else if let Some(json_paths) = matches.get_many::<String>("json") {
-        let paths: Vec<String> = json_paths.cloned().collect(); // Collect and clone Strings
-
-        SnapType::Json {
-            allocations_path: paths[0].clone(), // Clone String
-            elements_path: paths[1].clone(),    // Clone String
-        }
+    let path = if let Some(zip_path) = matches.get_one::<String>("path") {
+        zip_path.clone() // Clone String
     } else {
         // If neither --zip nor --json is provided, print an error and exit
-        eprintln!(
-            "No valid snap arguments provided. Use --zip <PATH> or --json <ALLOC_PATH> <ELEM_PATH>."
-        );
+        eprintln!("No valid snap path provided. Use --path <PATH>.");
         std::process::exit(1);
     };
 
@@ -94,7 +71,7 @@ pub fn cli() -> CliArg {
 
     // Return the CliArg struct
     CliArg {
-        snap_type,
+        path,
         resolution,
         log_level,
     }
@@ -108,7 +85,7 @@ fn app() -> anyhow::Result<()> {
         .filter_module("snapviewer", args.log_level)
         .init();
 
-    let allocs = read_snap(args.snap_type)?;
+    let allocs = read_snap(&args.path)?;
 
     let render_loop = RenderLoop::from_allocations(allocs, args.resolution);
 

@@ -3,7 +3,7 @@
 use crate::{
     allocation::Allocation,
     geometry::{AllocationGeometry, TraceGeometry},
-    load::{load_allocations, read_snap_from_jsons, read_snap_from_zip, SnapType},
+    load::{load_allocations, read_snap_from_zip},
     render_data::{RenderData, Transform},
     ticks::{self, TickGenerator},
     ui::{TranslateDir, WindowTransform},

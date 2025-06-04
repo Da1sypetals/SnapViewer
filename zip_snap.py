@@ -1,10 +1,23 @@
-import json
-import os
 import pickle
 import sys
+import zipfile
+import json  # Import the json module
 
 from icecream import ic
 from tqdm import tqdm
+
+ALLOCATIONS_FILE_NAME = "allocations.json"
+ELEMENTS_FILE_NAME = "elements.json"
+
+
+def trace2dict(device_trace):
+    alloc_data = process_alloc_data(device_trace, plot_segments=False)
+    allocations_over_time = alloc_data["allocations_over_time"]
+    elements = alloc_data["elements"]
+
+    allocations = allocations_over_time[:-1]
+
+    return allocations, elements
 
 
 def process_alloc_data(device_trace, plot_segments=False):
@@ -14,8 +27,14 @@ def process_alloc_data(device_trace, plot_segments=False):
     addr_to_alloc = {}
 
     # 第一阶段：处理事件流
-    alloc_actions = {"alloc", "segment_alloc"} if not plot_segments else {"segment_alloc"}
-    free_actions = {"free", "free_completed"} if not plot_segments else {"segment_free", "segment_free"}
+    alloc_actions = (
+        {"alloc", "segment_alloc"} if not plot_segments else {"segment_alloc"}
+    )
+    free_actions = (
+        {"free", "free_completed"}
+        if not plot_segments
+        else {"segment_free", "segment_free"}
+    )
 
     print("Processing events")
     for idx, event in enumerate(device_trace):
@@ -32,8 +51,7 @@ def process_alloc_data(device_trace, plot_segments=False):
                 initially_allocated.append(len(elements) - 1)
                 actions.append(len(elements) - 1)
 
-    # 这里假设没有预分配内存块，仅处理事件流中的初始状态
-    # 实际需要根据segment/block数据补充类似JavaScript的初始分配逻辑
+    # 没有预分配内存块，仅处理事件流中的初始状态
 
     # 第三阶段：模拟时间线
     current = []
@@ -146,7 +164,10 @@ def get_trace(dump: dict, device_id=0):
     if len(trace) <= device_id:
         # print to stderr and exit
         expected = 0 if len(trace) == 1 else f"0 ~ {len(trace) - 1}"
-        print(f"Error: device id out of range, expected {expected}, got {device_id}", file=sys.stderr)
+        print(
+            f"Error: device id out of range, expected {expected}, got {device_id}",
+            file=sys.stderr,
+        )
         exit(1)
     return trace[device_id]
 
@@ -160,58 +181,36 @@ def cli():
     import argparse
 
     parser = argparse.ArgumentParser()
-    # parse arg -p or --path
-    parser.add_argument("-p", "--path", type=str, default="snapshots/snapshot.pickle", help="path to snapshot")
-    parser.add_argument("-o", "--output_dir", type=str, default="alloc_data/", help="output dir")
+    parser.add_argument("-i", "--input", type=str, help="path to snapshot pickle")
+    parser.add_argument("-o", "--output", type=str, help="output path")
     parser.add_argument("-d", "--device", type=int, default=0, help="device id")
-    parser.add_argument("-z", "--zip", action="store_true", help="Whether to save as zipped")
+
     args = parser.parse_args()
-    path = args.path
-    output_dir = args.output_dir
-    device_id = args.device
 
-    # if output dir does not exist, create
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    with open(path, "rb") as f:
+    with open(args.input, "rb") as f:
         dump = pickle.load(f)
 
-    trace = get_trace(dump, device_id)
-    alloc_data = process_alloc_data(trace)
+    trace = get_trace(dump, args.device)
+    allocations, elements = trace2dict(trace)
 
-    # max_size = out["max_size"]
-    # max_at_time = out["max_at_time"]
-    # summarized_mem = out["summarized_mem"]
+    print("Saving trace dictionary as zip")
+    with zipfile.ZipFile(args.output, "w") as zf:
+        # Compress json_trace in memory and save to zip file
+        allocation_bytes = json.dumps(allocations).encode("utf-8")
+        elements_bytes = json.dumps(elements).encode("utf-8")
+        zf.writestr(
+            ALLOCATIONS_FILE_NAME,
+            allocation_bytes,
+            compress_type=zipfile.ZIP_DEFLATED,
+        )
+        zf.writestr(
+            ELEMENTS_FILE_NAME,
+            elements_bytes,
+            compress_type=zipfile.ZIP_DEFLATED,
+        )
 
-    allocations_over_time = alloc_data["allocations_over_time"]
-    elements = alloc_data["elements"]
-
-    allocations = allocations_over_time[:-1]
-
-    # allocations_over_time: save to json
-    print("Saving allocations_over_time to json")
-    allocations_path = os.path.join(output_dir, "allocations.json")
-    with open(allocations_path, "w") as f:
-        f.write(json.dumps(allocations))
-
-    # elements: save to json
-    print("Saving elements to json")
-    elements_path = os.path.join(output_dir, "elements.json")
-    with open(elements_path, "w") as f:
-        f.write(json.dumps(elements))
-
-    import zipfile
-
-    if args.zip:
-        print("Saving as zip")
-        zip_path = os.path.join(output_dir, "snap.zip")
-        with zipfile.ZipFile(zip_path, "w") as f:
-            f.write(allocations_path)
-            f.write(elements_path)
-
-    ic(len(elements))
     ic(len(allocations))
+    ic(len(elements))
 
 
 if __name__ == "__main__":

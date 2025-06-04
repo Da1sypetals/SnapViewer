@@ -1,4 +1,6 @@
-pub static UNITS: [&str; 8] = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"];
+pub const ALLOCATIONS_FILE_NAME: &str = "allocations.json";
+pub const ELEMENTS_FILE_NAME: &str = "elements.json";
+pub const UNITS: [&str; 8] = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"];
 pub const INTERVALS: [f64; 16] = [
     1.0_f64,
     4.0_f64,
