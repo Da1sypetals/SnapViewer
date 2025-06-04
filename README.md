@@ -6,18 +6,16 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
 ## Preprocess
 - Record memory snapsnot for your model. You may refer to [documentation](https://docs.pytorch.org/docs/stable/torch_cuda_memory.html);
-- Convert the snapshot to zip format with `parse_dump.py`.
+- Convert the snapshot to zip format with `convert_snap.py`.
 ```sh
-python parse_dump.py -p snapshots/large/transformer.pickle -o ./dumpjson -d 0 -z
+python convert_snap.py -i snap/large.pickle -o snap/large.zip
 ```
 
 ## Use
-- See `cargo run -- --help`. Please note that CLI options `-z` and `-j` conflicts.
+- See `cargo run -- --help`.
 - Navigate with WASD and mouse scroll.
 - Left click on the allocation, and its details (size, call stack, etc.) will show in stdout;
 - Right click anywhere and (memory the cursor's $y$ coords is at) will show in stdout.
-
-
 
 
 # TODO:
@@ -26,9 +24,9 @@ python parse_dump.py -p snapshots/large/transformer.pickle -o ./dumpjson -d 0 -z
 # Notes
 Run local for me: 
 ```sh
-cargo run -- -z snap/small.zip --res 2400 1080
+cargo run -- -p snap/block8_len100.zip --res 2400 1080 --log-info
 ```
 For very large snapshots, run on release:
 ```sh
-cargo run -r -- -z snap/transformer.zip --log-info --res 2400 1080 
+cargo run -r -- -p snap/large.zip --res 2400 1080 --log-info
 ```

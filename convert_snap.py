@@ -1,10 +1,17 @@
 import pickle
 import sys
 import zipfile
-import json  # Import the json module
-
+import json
+import logging  # Logging instead of print
 from icecream import ic
 from tqdm import tqdm
+
+# Set up logging to stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 
 ALLOCATIONS_FILE_NAME = "allocations.json"
 ELEMENTS_FILE_NAME = "elements.json"
@@ -26,7 +33,6 @@ def process_alloc_data(device_trace, plot_segments=False):
     actions = []
     addr_to_alloc = {}
 
-    # 第一阶段：处理事件流
     alloc_actions = (
         {"alloc", "segment_alloc"} if not plot_segments else {"segment_alloc"}
     )
@@ -36,7 +42,7 @@ def process_alloc_data(device_trace, plot_segments=False):
         else {"segment_free", "segment_free"}
     )
 
-    print("Processing events")
+    logging.info("Processing events")
     for idx, event in enumerate(device_trace):
         if event["action"] in alloc_actions:
             elements.append(event)
@@ -51,9 +57,6 @@ def process_alloc_data(device_trace, plot_segments=False):
                 initially_allocated.append(len(elements) - 1)
                 actions.append(len(elements) - 1)
 
-    # 没有预分配内存块，仅处理事件流中的初始状态
-
-    # 第三阶段：模拟时间线
     current = []
     current_data = []
     data = []
@@ -79,10 +82,8 @@ def process_alloc_data(device_trace, plot_segments=False):
         for _ in range(n):
             max_at_time.append(total_mem + total_summarized_mem)
 
-    # 处理初始分配
-    print("Processing initial allocations")
+    logging.info("Processing initial allocations")
     for elem in tqdm(reversed(initially_allocated)):
-        # 添加到可视分配
         element = elements[elem]
         current.append(elem)
         color = elem
@@ -97,17 +98,14 @@ def process_alloc_data(device_trace, plot_segments=False):
         data.append(data_entry)
         total_mem += element["size"]
 
-    # 处理动作序列
-    print("Processing actions")
+    logging.info("Processing actions")
     for elem in tqdm(actions):
         element = elements[elem]
         size = element["size"]
 
-        # 查找当前分配
         try:
             idx = next(i for i in reversed(range(len(current))) if current[i] == elem)
         except StopIteration:
-            # 新增分配
             current.append(elem)
             color = elem
             data_entry = {
@@ -122,14 +120,12 @@ def process_alloc_data(device_trace, plot_segments=False):
             total_mem += size
             advance(1)
         else:
-            # 释放分配
             removed = current_data[idx]
             removed["timesteps"].append(timestep)
             removed["offsets"].append(removed["offsets"][-1])
             del current[idx]
             del current_data[idx]
 
-            # 调整后续块位置
             if idx < len(current_data):
                 for entry in current_data[idx:]:
                     entry["timesteps"].append(timestep)
@@ -143,7 +139,6 @@ def process_alloc_data(device_trace, plot_segments=False):
 
         max_size = max(max_size, total_mem + total_summarized_mem)
 
-    # 收尾处理
     for entry in tqdm(current_data):
         entry["timesteps"].append(timestep)
         entry["offsets"].append(entry["offsets"][-1])
@@ -162,22 +157,15 @@ def process_alloc_data(device_trace, plot_segments=False):
 def get_trace(dump: dict, device_id=0):
     trace = dump["device_traces"]
     if len(trace) <= device_id:
-        # print to stderr and exit
         expected = 0 if len(trace) == 1 else f"0 ~ {len(trace) - 1}"
-        print(
-            f"Error: device id out of range, expected {expected}, got {device_id}",
-            file=sys.stderr,
+        logging.error(
+            f"Error: device id out of range, expected {expected}, got {device_id}"
         )
-        exit(1)
+        sys.exit(1)
     return trace[device_id]
 
 
 def cli():
-    """
-    elements: 原始的 action 对象，保存了分配地址，callstack等信息，长度为n
-    allocation_over_time: 用来画图的东西。其中最后一项是summary，可以忽略，长度为n+1
-
-    """
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -193,16 +181,20 @@ def cli():
     trace = get_trace(dump, args.device)
     allocations, elements = trace2dict(trace)
 
-    print("Saving trace dictionary as zip")
+    logging.info("Saving trace dictionary as zip")
     with zipfile.ZipFile(args.output, "w") as zf:
-        # Compress json_trace in memory and save to zip file
+        logging.info("Dumping allocations to byte stream")
         allocation_bytes = json.dumps(allocations).encode("utf-8")
+        logging.info("Dumping elements to byte stream")
         elements_bytes = json.dumps(elements).encode("utf-8")
+
+        logging.info("Saving allocations")
         zf.writestr(
             ALLOCATIONS_FILE_NAME,
             allocation_bytes,
             compress_type=zipfile.ZIP_DEFLATED,
         )
+        logging.info("Saving elements")
         zf.writestr(
             ELEMENTS_FILE_NAME,
             elements_bytes,
