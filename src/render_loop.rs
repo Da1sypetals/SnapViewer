@@ -12,8 +12,8 @@ use crate::{
 use log::info;
 use nalgebra::Vector2;
 use three_d::{
-    degrees, vec2, vec3, Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry,
-    Gm, Line, Mesh, MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings,
+    Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry, Gm, Line, Mesh,
+    MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings, degrees, vec2, vec3,
 };
 
 pub struct FpsTimer {
@@ -54,7 +54,7 @@ impl RenderLoop {
 
     pub fn run(self) {
         let window = Window::new(WindowSettings {
-            title: "Tomi Viewer".to_string(),
+            title: "SnapViewer".to_string(),
             min_size: self.resolution,
             max_size: Some(self.resolution),
             ..Default::default()

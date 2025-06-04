@@ -16,7 +16,7 @@ pub struct CliArg {
 }
 
 pub fn cli() -> CliArg {
-    let matches = Command::new("tomi: pyTOrch Memory Inspection tool")
+    let matches = Command::new("SnapViewer: PyTorch snapshot viewer")
         .arg(
             Arg::new("path")
                 .short('p')
