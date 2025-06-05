@@ -3,6 +3,7 @@
 use crate::{
     allocation::Allocation,
     geometry::{AllocationGeometry, TraceGeometry},
+    lining::generate_lining_mesh,
     load::{load_allocations, read_snap_from_zip},
     render_data::{RenderData, Transform},
     ticks::{self, TickGenerator},
@@ -13,7 +14,7 @@ use log::info;
 use nalgebra::Vector2;
 use three_d::{
     Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry, Gm, Line, Mesh,
-    MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings, degrees, vec2, vec3,
+    MouseButton, Object, Rectangle, Srgba, Viewport, Window, WindowSettings, degrees, vec2, vec3,
 };
 
 pub struct FpsTimer {
@@ -42,6 +43,9 @@ impl FpsTimer {
 pub struct RenderLoop {
     pub trace_geom: TraceGeometry,
     pub resolution: (u32, u32),
+
+    pub selected_alloc_idx: Option<usize>,
+    pub selected_alloc_lining: Option<Vec<Box<dyn Object>>>,
 }
 
 impl RenderLoop {
@@ -49,10 +53,12 @@ impl RenderLoop {
         Self {
             trace_geom: TraceGeometry::from_allocations(allocations, resolution),
             resolution,
+            selected_alloc_idx: None,
+            selected_alloc_lining: None,
         }
     }
 
-    pub fn run(self) {
+    pub fn run(mut self) {
         let window = Window::new(WindowSettings {
             title: "SnapViewer".to_string(),
             min_size: self.resolution,
@@ -103,11 +109,25 @@ impl RenderLoop {
                                 );
 
                                 // try to find allocation by cursor position
-                                let alloc_idx = self.trace_geom.find_by_pos(cursor_world_pos);
-                                info!("Find by pos results: alloc id: {:?}", alloc_idx);
+                                let alloc_idx_opt = self.trace_geom.find_by_pos(cursor_world_pos);
+                                info!("Find by pos results: alloc id: {:?}", alloc_idx_opt);
+
+                                // Update currently selected allocation
+                                if let Some(alloc_idx) = alloc_idx_opt {
+                                    if alloc_idx_opt != self.selected_alloc_idx {
+                                        // update index
+                                        self.selected_alloc_idx = alloc_idx_opt;
+
+                                        // pass geometry to render
+                                        self.selected_alloc_lining = Some(generate_lining_mesh(
+                                            &context,
+                                            &self.trace_geom.allocations[alloc_idx],
+                                        ))
+                                    }
+                                }
 
                                 // if we found an allocation at cursor position
-                                if let Some(idx) = alloc_idx {
+                                if let Some(idx) = alloc_idx_opt {
                                     println!(
                                         "Allocation #{}\n{}",
                                         idx,
@@ -179,21 +199,44 @@ impl RenderLoop {
                 &context,
             );
 
-            frame_input
-                .screen()
-                .clear(ClearState::color_and_depth(1.0, 1.0, 1.0, 1.0, 1.0))
-                .render(
-                    cam,
-                    // line.into_iter()
-                    //     .chain(&rectangle)
-                    //     .chain(&circle)
-                    //     .chain(&mesh),
-                    ticks.iter().chain(std::iter::once(&mesh)),
-                    &[],
-                );
+            let objects = ticks.iter().chain(std::iter::once(&mesh));
+            // XXX: Hack, refactor to use unified type for object if possible
+            match &self.selected_alloc_lining {
+                Some(lining) => {
+                    frame_input
+                        .screen()
+                        .clear(ClearState::color_and_depth(1.0, 1.0, 1.0, 1.0, 1.0))
+                        .render(
+                            cam,
+                            // line.into_iter()
+                            //     .chain(&rectangle)
+                            //     .chain(&circle)
+                            //     .chain(&mesh),
+
+                            // XXX: WTF hack
+                            objects
+                                .map(|x| x as &dyn Object)
+                                .chain(lining.iter().map(|x| x.as_ref())),
+                            &[],
+                        );
+                }
+                None => {
+                    frame_input
+                        .screen()
+                        .clear(ClearState::color_and_depth(1.0, 1.0, 1.0, 1.0, 1.0))
+                        .render(
+                            cam,
+                            // line.into_iter()
+                            //     .chain(&rectangle)
+                            //     .chain(&circle)
+                            //     .chain(&mesh),
+                            objects,
+                            &[],
+                        );
+                }
+            }
 
             timer.tick();
-
             FrameOutput::default()
         });
     }

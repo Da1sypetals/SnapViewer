@@ -1,5 +1,6 @@
 pub mod allocation;
 pub mod geometry;
+pub mod lining;
 pub mod load;
 pub mod render_data;
 pub mod render_loop;
