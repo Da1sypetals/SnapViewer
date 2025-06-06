@@ -38,35 +38,26 @@ pub struct RenderData {
     pub colors: Vec<Srgba>,
 }
 
-pub fn sample_colors(n: usize) -> Vec<Srgba> {
-    let mut rng = rand::rng();
-    let mut colors = Vec::with_capacity(n);
-
-    for _ in 0..n {
-        let r = rng.random_range(0..=255);
-        let g = rng.random_range(0..=255);
-        let b = rng.random_range(0..=255);
-
-        colors.push(Srgba::new(r, g, b, 30));
-    }
-
-    colors
-}
-
 impl RenderData {
-    pub fn from_allocations(allocations: &Vec<AllocationGeometry>) -> Self {
-        let colors = sample_colors(allocations.len());
-        Self::with_colors(allocations, colors)
-    }
-
-    /// TODO: sample random colors
-    /// colors: one per allocation
-    pub fn with_colors(allocations: &Vec<AllocationGeometry>, colors: Vec<Srgba>) -> Self {
+    pub fn from_allocations<'a>(allocations: impl Iterator<Item = &'a AllocationGeometry>) -> Self {
         info!("Converting geometries to render-able mesh...");
+
+        // pack a random color with each allocation
+        let mut rng = rand::rng();
+        let alloc_colors = allocations.map(|alloc| {
+            let r = rng.random_range(0..=255);
+            let g = rng.random_range(0..=255);
+            let b = rng.random_range(0..=255);
+            let color = Srgba::new(r, g, b, 30);
+
+            (alloc, color)
+        });
+
+        // prepare containers for geometry
         let mut verts = Vec::new();
         let mut vert_colors = Vec::new();
 
-        for (ialloc, alloc) in allocations.iter().enumerate() {
+        for (alloc, color) in alloc_colors {
             for ivert in 0..alloc.num_steps() - 1 {
                 let this_time = alloc.timesteps[ivert];
                 let next_time = alloc.timesteps[ivert + 1];
@@ -92,7 +83,7 @@ impl RenderData {
 
                 // colors for all verts
                 for _ in 0..6 {
-                    vert_colors.push(colors[ialloc]);
+                    vert_colors.push(color);
                 }
             }
         }

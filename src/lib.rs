@@ -6,3 +6,4 @@ pub mod render_loop;
 pub mod ticks;
 pub mod ui;
 pub mod utils;
+pub mod select_fade;
