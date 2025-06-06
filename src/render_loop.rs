@@ -13,7 +13,8 @@ use log::info;
 use nalgebra::Vector2;
 use three_d::{
     Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry, Gm, Line, Mesh,
-    MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings, degrees, vec2, vec3,
+    MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings, context::SRGB8_ALPHA8,
+    degrees, vec2, vec3,
 };
 
 pub struct FpsTimer {
@@ -39,9 +40,55 @@ impl FpsTimer {
     }
 }
 
+pub struct DecayingWhiteColor {
+    pub fade_time: f64,
+    pub time: f64,
+    pub material: ColorMaterial,
+}
+
+impl DecayingWhiteColor {
+    pub fn new(fade_time: f64) -> Self {
+        Self {
+            fade_time,
+            time: 0.0,
+            material: ColorMaterial {
+                color: Srgba::WHITE,
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn tick(&mut self, dt: f64) {
+        // at most fade_time seconds
+        self.time = self.fade_time.min(self.time + dt);
+        self.update_color();
+    }
+
+    pub fn reset(&mut self) {
+        self.time = 0.0;
+        self.update_color();
+    }
+
+    pub fn update_color(&mut self) {
+        // time = 0 -> alpha = 1.0
+        // let mut color = Srgba::WHITE;
+        // color.a = ((1.0 - self.time / self.fade_time) * 255.0) as u8;
+
+        let c = ((1.0 - self.time / self.fade_time) * 255.0) as u8;
+        let color = Srgba::new(c, c, c, c);
+
+        self.material.color = color;
+    }
+
+    pub fn material(&self) -> ColorMaterial {
+        self.material.clone()
+    }
+}
+
 pub struct RenderLoop {
     pub trace_geom: TraceGeometry,
     pub resolution: (u32, u32),
+    pub selected_mesh: Option<Gm<Mesh, ColorMaterial>>,
 }
 
 impl RenderLoop {
@@ -49,10 +96,11 @@ impl RenderLoop {
         Self {
             trace_geom: TraceGeometry::from_allocations(allocations, resolution),
             resolution,
+            selected_mesh: None,
         }
     }
 
-    pub fn run(self) {
+    pub fn run(mut self) {
         let window = Window::new(WindowSettings {
             title: "SnapViewer".to_string(),
             min_size: self.resolution,
@@ -83,8 +131,11 @@ impl RenderLoop {
 
         // start a timer
         let mut timer = FpsTimer::new();
+        let mut decaying_white = DecayingWhiteColor::new(0.8);
 
         window.render_loop(move |mut frame_input| {
+            let mut mesh_iter = std::iter::once(&mesh);
+
             for event in frame_input.events.iter() {
                 match *event {
                     Event::MousePress {
@@ -108,11 +159,28 @@ impl RenderLoop {
 
                                 // if we found an allocation at cursor position
                                 if let Some(idx) = alloc_idx {
+                                    // print allocation info
                                     println!(
                                         "Allocation #{}\n{}",
                                         idx,
                                         self.trace_geom.allocation_info(idx)
                                     );
+
+                                    // animate allocated mesh
+                                    let alloc_rdata = RenderData::from_allocations_with_z(
+                                        std::iter::once((
+                                            &self.trace_geom.allocations[idx],
+                                            Srgba::WHITE,
+                                        )),
+                                        0.005,
+                                    );
+                                    let alloc_mesh = Gm::new(
+                                        Mesh::new(&context, &alloc_rdata.to_cpu_mesh()),
+                                        decaying_white.material(),
+                                    );
+                                    self.selected_mesh = Some(alloc_mesh);
+
+                                    decaying_white.reset();
                                 }
                             }
                             MouseButton::Right => {
@@ -179,6 +247,12 @@ impl RenderLoop {
                 &context,
             );
 
+            let mut allocation_meshes = vec![&mesh];
+            if let Some(selected_mesh) = &mut self.selected_mesh {
+                selected_mesh.material = decaying_white.material();
+                allocation_meshes.push(selected_mesh);
+            }
+
             frame_input
                 .screen()
                 .clear(ClearState::color_and_depth(1.0, 1.0, 1.0, 1.0, 1.0))
@@ -188,11 +262,12 @@ impl RenderLoop {
                     //     .chain(&rectangle)
                     //     .chain(&circle)
                     //     .chain(&mesh),
-                    ticks.iter().chain(std::iter::once(&mesh)),
+                    ticks.iter().chain(allocation_meshes.into_iter()),
                     &[],
                 );
 
             timer.tick();
+            decaying_white.tick(frame_input.elapsed_time / 1000.0); // this is MS
 
             FrameOutput::default()
         });

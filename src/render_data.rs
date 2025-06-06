@@ -40,8 +40,6 @@ pub struct RenderData {
 
 impl RenderData {
     pub fn from_allocations<'a>(allocations: impl Iterator<Item = &'a AllocationGeometry>) -> Self {
-        info!("Converting geometries to render-able mesh...");
-
         // pack a random color with each allocation
         let mut rng = rand::rng();
         let alloc_colors = allocations.map(|alloc| {
@@ -52,6 +50,14 @@ impl RenderData {
 
             (alloc, color)
         });
+        Self::from_allocations_with_z(alloc_colors, 0.0)
+    }
+
+    pub fn from_allocations_with_z<'a>(
+        alloc_colors: impl Iterator<Item = (&'a AllocationGeometry, Srgba)>,
+        z: f64,
+    ) -> Self {
+        info!("Converting geometries to render-able mesh...");
 
         // prepare containers for geometry
         let mut verts = Vec::new();
@@ -66,10 +72,11 @@ impl RenderData {
                 let this_hi = this_lo + alloc.size;
                 let next_hi = next_lo + alloc.size;
 
-                let left_bot = three_d::Vector3::new(this_time, this_lo, 0.0);
-                let left_top = three_d::Vector3::new(this_time, this_hi, 0.0);
-                let right_bot = three_d::Vector3::new(next_time, next_lo, 0.0);
-                let right_top = three_d::Vector3::new(next_time, next_hi, 0.0);
+                // vertices that make up the quad
+                let left_bot = three_d::Vector3::new(this_time, this_lo, z);
+                let left_top = three_d::Vector3::new(this_time, this_hi, z);
+                let right_bot = three_d::Vector3::new(next_time, next_lo, z);
+                let right_top = three_d::Vector3::new(next_time, next_hi, z);
 
                 // Triangle 1
                 verts.push(left_bot);
