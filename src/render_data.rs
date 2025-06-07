@@ -35,7 +35,9 @@ impl Transform {
 
 pub struct RenderData {
     pub verts: Vec<three_d::Vector3<f64>>,
-    pub colors: Vec<Srgba>,
+    pub vert_colors: Vec<Srgba>,
+
+    pub alloc_colors: Vec<Srgba>,
 }
 
 impl RenderData {
@@ -43,10 +45,16 @@ impl RenderData {
         // pack a random color with each allocation
         let mut rng = rand::rng();
         let alloc_colors = allocations.map(|alloc| {
-            let r = rng.random_range(0..=255);
-            let g = rng.random_range(0..=255);
-            let b = rng.random_range(0..=255);
-            let color = Srgba::new(r, g, b, 30);
+            let color = loop {
+                let r: u32 = rng.random_range(0..=255);
+                let g: u32 = rng.random_range(0..=255);
+                let b: u32 = rng.random_range(0..=255);
+
+                // Reject colors that are too light or too dark
+                if 150 < r + g + b && r + g + b < 600 {
+                    break Srgba::new(r as u8, g as u8, b as u8, 30);
+                }
+            };
 
             (alloc, color)
         });
@@ -54,7 +62,7 @@ impl RenderData {
     }
 
     pub fn from_allocations_with_z<'a>(
-        alloc_colors: impl Iterator<Item = (&'a AllocationGeometry, Srgba)>,
+        alloc_zip_colors: impl Iterator<Item = (&'a AllocationGeometry, Srgba)>,
         z: f64,
     ) -> Self {
         info!("Converting geometries to render-able mesh...");
@@ -62,8 +70,10 @@ impl RenderData {
         // prepare containers for geometry
         let mut verts = Vec::new();
         let mut vert_colors = Vec::new();
+        let mut alloc_colors = Vec::new();
 
-        for (alloc, color) in alloc_colors {
+        for (alloc, color) in alloc_zip_colors {
+            alloc_colors.push(color);
             for ivert in 0..alloc.num_steps() - 1 {
                 let this_time = alloc.timesteps[ivert];
                 let next_time = alloc.timesteps[ivert + 1];
@@ -103,14 +113,15 @@ impl RenderData {
 
         Self {
             verts,
-            colors: vert_colors,
+            vert_colors,
+            alloc_colors,
         }
     }
 
     pub fn to_cpu_mesh(&self) -> CpuMesh {
         CpuMesh {
             positions: three_d::Positions::F64(self.verts.clone()),
-            colors: Some(self.colors.clone()),
+            colors: Some(self.vert_colors.clone()),
             indices: three_d::Indices::None,
             normals: None,
             tangents: None,

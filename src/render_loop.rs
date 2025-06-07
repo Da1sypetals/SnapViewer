@@ -44,10 +44,11 @@ pub struct DecayingWhiteColor {
     pub fade_time: f64,
     pub time: f64,
     pub material: ColorMaterial,
+    pub target_color: Srgba,
 }
 
 impl DecayingWhiteColor {
-    pub fn new(fade_time: f64) -> Self {
+    pub fn new(fade_time: f64, target_color: Srgba) -> Self {
         Self {
             fade_time,
             time: 0.0,
@@ -55,6 +56,7 @@ impl DecayingWhiteColor {
                 color: Srgba::WHITE,
                 ..Default::default()
             },
+            target_color,
         }
     }
 
@@ -64,8 +66,9 @@ impl DecayingWhiteColor {
         self.update_color();
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(&mut self, target_color: Srgba) {
         self.time = 0.0;
+        self.target_color = target_color;
         self.update_color();
     }
 
@@ -74,9 +77,14 @@ impl DecayingWhiteColor {
         // let mut color = Srgba::WHITE;
         // color.a = ((1.0 - self.time / self.fade_time) * 255.0) as u8;
 
-        let c = ((1.0 - self.time / self.fade_time) * 255.0) as u8;
-        let color = Srgba::new(c, c, c, c);
-
+        let t = 1.0 - self.time / self.fade_time;
+        // lerp between
+        let color = Srgba {
+            r: self.target_color.r + ((255 - self.target_color.r) as f64 * t) as u8,
+            g: self.target_color.g + ((255 - self.target_color.g) as f64 * t) as u8,
+            b: self.target_color.b + ((255 - self.target_color.b) as f64 * t) as u8,
+            a: 255,
+        };
         self.material.color = color;
     }
 
@@ -131,7 +139,7 @@ impl RenderLoop {
 
         // start a timer
         let mut timer = FpsTimer::new();
-        let mut decaying_white = DecayingWhiteColor::new(0.8);
+        let mut decaying_white = DecayingWhiteColor::new(0.8, Srgba::WHITE);
 
         window.render_loop(move |mut frame_input| {
             let mut mesh_iter = std::iter::once(&mesh);
@@ -180,7 +188,9 @@ impl RenderLoop {
                                     );
                                     self.selected_mesh = Some(alloc_mesh);
 
-                                    decaying_white.reset();
+                                    // The original color of the allocation
+                                    let original_color = rdata.alloc_colors[idx];
+                                    decaying_white.reset(original_color);
                                 }
                             }
                             MouseButton::Right => {
