@@ -24,8 +24,9 @@ pub fn cli() -> CliArg {
                 .help("Path of the .zip file to load snapshot from")
                 .action(ArgAction::Set) // Action to set the value
                 .num_args(1) // Exactly one path
-                .value_name("ZIP_PATH")
-                .value_parser(clap::value_parser!(String)), // Parse value as String
+                .value_name("PATH")
+                .value_parser(clap::value_parser!(String)) // Parse value as String
+                .required(true),
         )
         .arg(
             Arg::new("res")
@@ -45,14 +46,8 @@ pub fn cli() -> CliArg {
         )
         .get_matches();
 
-    // Determine the SnapType based on provided arguments
-    let path = if let Some(zip_path) = matches.get_one::<String>("path") {
-        zip_path.clone() // Clone String
-    } else {
-        // If neither --zip nor --json is provided, print an error and exit
-        eprintln!("No valid snap path provided. Use --path <PATH>.");
-        std::process::exit(1);
-    };
+    // Path is required, so we can safely unwrap the value.
+    let path = matches.get_one::<String>("path").unwrap().clone();
 
     // Since --res is required, we can safely unwrap the values.
     // get_many will always return Some now because the argument is required.

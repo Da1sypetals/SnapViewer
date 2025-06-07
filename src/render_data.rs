@@ -4,7 +4,6 @@ use nalgebra::Vector2;
 use rand::Rng;
 use three_d::{CpuMesh, Matrix, Srgba};
 
-/// After transform, [-1,1] x [-1,1] stays in window, others are not displayed.
 #[derive(Clone, Copy, Debug)]
 pub struct Transform {
     pub scale: Vector2<f64>,

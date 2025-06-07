@@ -17,7 +17,7 @@ ALLOCATIONS_FILE_NAME = "allocations.json"
 ELEMENTS_FILE_NAME = "elements.json"
 
 
-def trace2dict(device_trace):
+def trace_to_allocation_data(device_trace):
     alloc_data = process_alloc_data(device_trace, plot_segments=False)
     allocations_over_time = alloc_data["allocations_over_time"]
     elements = alloc_data["elements"]
@@ -179,7 +179,7 @@ def cli():
         dump = pickle.load(f)
 
     trace = get_trace(dump, args.device)
-    allocations, elements = trace2dict(trace)
+    allocations, elements = trace_to_allocation_data(trace)
 
     logging.info("Saving trace dictionary as zip")
     with zipfile.ZipFile(args.output, "w") as zf:
