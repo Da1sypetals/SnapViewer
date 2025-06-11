@@ -2,19 +2,16 @@
 
 use crate::{
     allocation::Allocation,
-    geometry::{AllocationGeometry, TraceGeometry},
-    load::{load_allocations, read_snap_from_zip},
+    geometry::TraceGeometry,
     render_data::RenderData,
-    ticks::{self, TickGenerator},
+    ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
-    utils::{format_bytes, format_bytes_precision},
+    utils::format_bytes_precision,
 };
 use log::info;
-use nalgebra::Vector2;
 use three_d::{
-    Camera, Circle, ClearState, ColorMaterial, Event, FrameOutput, Geometry, Gm, Line, Mesh,
-    MouseButton, Rectangle, Srgba, Viewport, Window, WindowSettings, context::SRGB8_ALPHA8,
-    degrees, vec2, vec3,
+    ClearState, ColorMaterial, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
+    WindowSettings,
 };
 
 pub struct FpsTimer {
@@ -118,14 +115,12 @@ impl RenderLoop {
         })
         .unwrap();
         let context = window.gl();
-        let scale_factor = window.device_pixel_ratio();
-        let (width, height) = window.size();
 
         let rdata = RenderData::from_allocations(self.trace_geom.allocations.iter());
 
         let cpumesh = rdata.to_cpu_mesh();
         info!("Moving mesh to GPU...");
-        let mut mesh = Gm::new(
+        let mesh = Gm::new(
             Mesh::new(&context, &cpumesh),
             ColorMaterial {
                 color: Srgba::WHITE, // colors are mixed (component-wise multiplied)
@@ -148,16 +143,13 @@ impl RenderLoop {
         // click-blink color
         let mut decaying_color = DecayingColor::new(0.8, Srgba::WHITE);
 
-        window.render_loop(move |mut frame_input| {
-            let mut mesh_iter = std::iter::once(&mesh);
+        window.render_loop(move |frame_input| {
+            // render loop start
 
             for event in frame_input.events.iter() {
                 match *event {
                     Event::MousePress {
-                        button,
-                        position,
-                        modifiers,
-                        handled,
+                        button, position, ..
                     } => {
                         // rustfmt don't eliminate by brace
                         match button {
@@ -220,10 +212,7 @@ impl RenderLoop {
                         }
                     }
                     Event::MouseWheel {
-                        delta,
-                        position,
-                        modifiers,
-                        handled,
+                        delta, position, ..
                     } => {
                         if delta.1 > 0.0 {
                             win_trans.zoom_in(position.into());
@@ -231,11 +220,7 @@ impl RenderLoop {
                             win_trans.zoom_out(position.into());
                         }
                     }
-                    Event::KeyPress {
-                        kind,
-                        modifiers,
-                        handled,
-                    } => {
+                    Event::KeyPress { kind, .. } => {
                         // placeholder
                         match kind {
                             three_d::Key::W => win_trans.translate(TranslateDir::Up),

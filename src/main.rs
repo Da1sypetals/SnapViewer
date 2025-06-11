@@ -1,12 +1,5 @@
-#![allow(warnings)]
-
 use clap::{Arg, ArgAction, Command};
-use log::info;
-use snapviewer::{
-    geometry::TraceGeometry,
-    load::{load_allocations, read_snap, read_snap_from_zip},
-    render_loop::RenderLoop,
-};
+use snapviewer::{load::read_snap, render_loop::RenderLoop};
 
 #[derive(Debug)]
 pub struct CliArg {
