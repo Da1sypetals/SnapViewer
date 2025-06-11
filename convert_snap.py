@@ -3,7 +3,6 @@ import sys
 import zipfile
 import json
 import logging  # Logging instead of print
-from icecream import ic
 from tqdm import tqdm
 
 # Set up logging to stdout
@@ -209,8 +208,9 @@ def cli():
             compress_type=zipfile.ZIP_DEFLATED,
         )
 
-    ic(len(allocations))
-    ic(len(elements))
+    print("Trace lengths:")
+    print(f"    {len(allocations) = }")
+    print(f"    {len(elements) = }")
 
 
 if __name__ == "__main__":
