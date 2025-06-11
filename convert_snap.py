@@ -154,14 +154,22 @@ def process_alloc_data(device_trace, plot_segments=False):
     }
 
 
-def get_trace(dump: dict, device_id=0):
+def get_trace(dump: dict, device_id: int):
     trace = dump["device_traces"]
-    if len(trace) <= device_id:
+    if device_id >= len(trace):
         expected = 0 if len(trace) == 1 else f"0 ~ {len(trace) - 1}"
         logging.error(
             f"Error: device id out of range, expected {expected}, got {device_id}"
         )
         sys.exit(1)
+
+    if len(trace[device_id]) == 0:
+        # devices where its trace is not empty
+        devices_with_trace = [i for i, tr in enumerate(trace) if len(tr) > 0]
+        print(f"Warning: requested device ({device_id}) has no trace in this snapshot.")
+        print(f"         Devices with trace: {devices_with_trace}")
+        sys.exit(1)
+
     return trace[device_id]
 
 

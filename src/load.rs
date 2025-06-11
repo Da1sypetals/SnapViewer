@@ -1,5 +1,6 @@
 use crate::allocation::{Allocation, ElementData, RawAllocationData};
 use crate::utils::{ALLOCATIONS_FILE_NAME, ELEMENTS_FILE_NAME};
+use indicatif::ProgressIterator;
 use log::info;
 use std::fs::File;
 use std::io::Read;
@@ -13,6 +14,7 @@ pub struct RawSnap {
     pub(crate) elements: String,
 }
 
+/// Executed at start
 pub fn read_snap(zip_file_path: &str) -> anyhow::Result<Vec<Allocation>> {
     info!("Loading snapshot...");
     let rawsnap = read_snap_from_zip(zip_file_path)?;
@@ -28,6 +30,8 @@ pub fn read_snap(zip_file_path: &str) -> anyhow::Result<Vec<Allocation>> {
 /// A `Result` containing a tuple of `(Option<String>, Option<String>)` where the first
 /// `String` is the content of "allocations.json" and the second is the content of
 /// "elements.json", or an `io::Error` if an error occurs.
+///
+/// Executed at start
 pub fn read_snap_from_zip(zip_file_path: &str) -> anyhow::Result<RawSnap> {
     info!("Loading json strings from zip...");
 
@@ -53,10 +57,12 @@ pub fn read_snap_from_zip(zip_file_path: &str) -> anyhow::Result<RawSnap> {
             let filename = outpath.file_name().and_then(|s| s.to_str()).unwrap_or("");
 
             if filename == ALLOCATIONS_FILE_NAME {
+                info!("Reading {} to string", ALLOCATIONS_FILE_NAME);
                 let mut content = String::new();
                 file.read_to_string(&mut content)?;
                 allocations = Some(content);
             } else if filename == ELEMENTS_FILE_NAME {
+                info!("Reading {} to string", ELEMENTS_FILE_NAME);
                 let mut content = String::new();
                 file.read_to_string(&mut content)?;
                 elements = Some(content);
@@ -76,6 +82,7 @@ pub fn read_snap_from_zip(zip_file_path: &str) -> anyhow::Result<RawSnap> {
     }
 }
 
+/// Executed at start
 pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
     info!("Parsing json to data structure...");
 
@@ -108,6 +115,7 @@ pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
     }
 
     // Combine the data from raw_allocs and elements_data (callstacks)
+    info!("Combining allocations and elements data...");
     let allocations: Vec<Allocation> = raw_allocs
         .into_iter()
         .zip(elements_data.into_iter())
@@ -137,6 +145,7 @@ pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
                 peak_timestamps,
             }
         })
+        .progress()
         .collect();
 
     Ok(allocations)

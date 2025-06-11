@@ -4,7 +4,7 @@ use crate::{
     allocation::Allocation,
     geometry::{AllocationGeometry, TraceGeometry},
     load::{load_allocations, read_snap_from_zip},
-    render_data::{RenderData, Transform},
+    render_data::RenderData,
     ticks::{self, TickGenerator},
     ui::{TranslateDir, WindowTransform},
     utils::{format_bytes, format_bytes_precision},
@@ -33,21 +33,21 @@ impl FpsTimer {
         self.frame += 1;
         let elapsed = self.timer.elapsed().as_secs_f64();
         if elapsed >= 1.0 {
-            info!("FPS: {:.2}", self.frame as f64 / elapsed as f64);
+            log::trace!("FPS: {:.2}", self.frame as f64 / elapsed as f64);
             self.timer = std::time::Instant::now();
             self.frame = 0;
         }
     }
 }
 
-pub struct DecayingWhiteColor {
+pub struct DecayingColor {
     pub fade_time: f64,
     pub time: f64,
     pub material: ColorMaterial,
     pub target_color: Srgba,
 }
 
-impl DecayingWhiteColor {
+impl DecayingColor {
     pub fn new(fade_time: f64, target_color: Srgba) -> Self {
         Self {
             fade_time,
@@ -100,6 +100,7 @@ pub struct RenderLoop {
 }
 
 impl RenderLoop {
+    /// Executed at start
     pub fn from_allocations(allocations: Vec<Allocation>, resolution: (u32, u32)) -> Self {
         Self {
             trace_geom: TraceGeometry::from_allocations(allocations, resolution),
@@ -123,6 +124,7 @@ impl RenderLoop {
         let rdata = RenderData::from_allocations(self.trace_geom.allocations.iter());
 
         let cpumesh = rdata.to_cpu_mesh();
+        info!("Moving mesh to GPU...");
         let mut mesh = Gm::new(
             Mesh::new(&context, &cpumesh),
             ColorMaterial {
@@ -131,15 +133,20 @@ impl RenderLoop {
             },
         );
 
-        let transform = Transform::identity();
+        info!("Setting up window and UI...");
+
+        // window transformation (moving & zooming)
         let mut win_trans = WindowTransform::new(self.resolution);
         win_trans.set_zoom_limits(0.75, self.trace_geom.max_time as f32 / 100.0);
 
+        // ticks
         let tickgen = TickGenerator::jbmono(self.resolution, 20.0);
 
         // start a timer
         let mut timer = FpsTimer::new();
-        let mut decaying_white = DecayingWhiteColor::new(0.8, Srgba::WHITE);
+
+        // click-blink color
+        let mut decaying_color = DecayingColor::new(0.8, Srgba::WHITE);
 
         window.render_loop(move |mut frame_input| {
             let mut mesh_iter = std::iter::once(&mesh);
@@ -184,13 +191,13 @@ impl RenderLoop {
                                     );
                                     let alloc_mesh = Gm::new(
                                         Mesh::new(&context, &alloc_rdata.to_cpu_mesh()),
-                                        decaying_white.material(),
+                                        decaying_color.material(),
                                     );
                                     self.selected_mesh = Some(alloc_mesh);
 
                                     // The original color of the allocation
                                     let original_color = rdata.alloc_colors[idx];
-                                    decaying_white.reset(original_color);
+                                    decaying_color.reset(original_color);
                                 }
                             }
                             MouseButton::Right => {
@@ -245,8 +252,6 @@ impl RenderLoop {
             }
             let cam = win_trans.camera(frame_input.viewport);
 
-            mesh.set_transformation(transform.to_mat4());
-
             let high_bytes = self.trace_geom.world2memory(win_trans.ytop_world());
             let low_bytes = self.trace_geom.world2memory(win_trans.ybot_world());
             let ticks = tickgen.generate_memory_ticks(
@@ -259,7 +264,7 @@ impl RenderLoop {
 
             let mut allocation_meshes = vec![&mesh];
             if let Some(selected_mesh) = &mut self.selected_mesh {
-                selected_mesh.material = decaying_white.material();
+                selected_mesh.material = decaying_color.material();
                 allocation_meshes.push(selected_mesh);
             }
 
@@ -277,7 +282,7 @@ impl RenderLoop {
                 );
 
             timer.tick();
-            decaying_white.tick(frame_input.elapsed_time / 1000.0); // this is MS
+            decaying_color.tick(frame_input.elapsed_time / 1000.0); // this is MS
 
             FrameOutput::default()
         });

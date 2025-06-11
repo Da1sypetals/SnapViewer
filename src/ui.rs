@@ -1,5 +1,5 @@
 use nalgebra::Vector2;
-use three_d::{vec3, Camera, Viewport};
+use three_d::{Camera, Viewport, vec3};
 
 #[derive(Debug)]
 pub struct WindowTransform {
@@ -119,6 +119,7 @@ impl WindowTransform {
             self.max_zoom.min(self.zoom * (1.0 + self.zoom_step)),
             screen_pos,
         );
+        self.enforce_boundaries();
     }
 
     pub fn zoom_out(&mut self, screen_pos: (f32, f32)) {
@@ -126,6 +127,7 @@ impl WindowTransform {
             self.min_zoom.max(self.zoom * (1.0 - self.zoom_step)),
             screen_pos,
         );
+        self.enforce_boundaries();
     }
 
     pub fn translate(&mut self, dir: TranslateDir) {

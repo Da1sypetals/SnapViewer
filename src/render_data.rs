@@ -1,36 +1,34 @@
 use crate::geometry::AllocationGeometry;
+use indicatif::ProgressIterator;
 use log::info;
-use nalgebra::Vector2;
 use rand::Rng;
-use three_d::{CpuMesh, Matrix, Srgba};
+use three_d::{CpuMesh, Srgba};
 
-#[derive(Clone, Copy, Debug)]
-pub struct Transform {
-    pub scale: Vector2<f64>,
-    pub translate: Vector2<f64>,
-}
-
-impl Transform {
-    pub fn identity() -> Self {
-        Transform {
-            scale: Vector2::new(1.0, 1.0),
-            translate: Vector2::new(0.0, 0.0),
-        }
-    }
-
-    #[rustfmt::skip]
-    pub fn to_mat4(self) -> three_d::Mat4 {
-        // do not format
-        three_d::Mat4::new(
-            // column major
-            self.scale.x as f32,0.0                ,0.0,self.translate.x as f32,
-            0.0                ,self.scale.y as f32,0.0,self.translate.y as f32,
-            0.0                ,0.0                ,1.0,0.0,
-            0.0                ,0.0                ,0.0,1.0,
-        )
-        .transpose() // now row major
-    }
-}
+// #[derive(Clone, Copy, Debug)]
+// pub struct Transform {
+//     pub scale: Vector2<f64>,
+//     pub translate: Vector2<f64>,
+// }
+// impl Transform {
+//     pub fn identity() -> Self {
+//         Transform {
+//             scale: Vector2::new(1.0, 1.0),
+//             translate: Vector2::new(0.0, 0.0),
+//         }
+//     }
+//     #[rustfmt::skip]
+//     pub fn to_mat4(self) -> three_d::Mat4 {
+//         // do not format
+//         three_d::Mat4::new(
+//             // column major
+//             self.scale.x as f32,0.0                ,0.0,self.translate.x as f32,
+//             0.0                ,self.scale.y as f32,0.0,self.translate.y as f32,
+//             0.0                ,0.0                ,1.0,0.0,
+//             0.0                ,0.0                ,0.0,1.0,
+//         )
+//         .transpose() // now row major
+//     }
+// }
 
 pub struct RenderData {
     pub verts: Vec<three_d::Vector3<f64>>,
@@ -40,23 +38,30 @@ pub struct RenderData {
 }
 
 impl RenderData {
-    pub fn from_allocations<'a>(allocations: impl Iterator<Item = &'a AllocationGeometry>) -> Self {
+    pub fn from_allocations<'a>(
+        allocations: impl ExactSizeIterator<Item = &'a AllocationGeometry>, // required for progress bar
+    ) -> Self {
+        info!("Converting geometries to render-able mesh...");
+
         // pack a random color with each allocation
         let mut rng = rand::rng();
-        let alloc_colors = allocations.map(|alloc| {
-            let color = loop {
-                let r: u32 = rng.random_range(0..=255);
-                let g: u32 = rng.random_range(0..=255);
-                let b: u32 = rng.random_range(0..=255);
+        let alloc_colors = allocations
+            .map(|alloc| {
+                let color = loop {
+                    let r: u32 = rng.random_range(0..=255);
+                    let g: u32 = rng.random_range(0..=255);
+                    let b: u32 = rng.random_range(0..=255);
 
-                // Reject colors that are too light or too dark
-                if 150 < r + g + b && r + g + b < 600 {
-                    break Srgba::new(r as u8, g as u8, b as u8, 30);
-                }
-            };
+                    // Reject colors that are too light or too dark
+                    if 150 < r + g + b && r + g + b < 600 {
+                        break Srgba::new(r as u8, g as u8, b as u8, 30);
+                    }
+                };
 
-            (alloc, color)
-        });
+                (alloc, color)
+            })
+            .progress();
+
         Self::from_allocations_with_z(alloc_colors, 0.0)
     }
 
@@ -64,8 +69,6 @@ impl RenderData {
         alloc_zip_colors: impl Iterator<Item = (&'a AllocationGeometry, Srgba)>,
         z: f64,
     ) -> Self {
-        info!("Converting geometries to render-able mesh...");
-
         // prepare containers for geometry
         let mut verts = Vec::new();
         let mut vert_colors = Vec::new();
