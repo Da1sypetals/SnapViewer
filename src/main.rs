@@ -7,12 +7,12 @@ use snapviewer::{
     load::{load_allocations, read_snap, read_snap_from_zip},
     render_loop::RenderLoop,
 };
-// Define the structure to hold all parsed command-line arguments
+
 #[derive(Debug)]
 pub struct CliArg {
     pub path: String,
     pub resolution: (u32, u32),
-    pub log_level: log::LevelFilter, // Added the log_info field
+    pub log_level: log::LevelFilter,
 }
 
 pub fn cli() -> CliArg {
@@ -22,49 +22,45 @@ pub fn cli() -> CliArg {
                 .short('p')
                 .long("path")
                 .help("Path of the .zip file to load snapshot from")
-                .action(ArgAction::Set) // Action to set the value
-                .num_args(1) // Exactly one path
+                .action(ArgAction::Set)
+                .num_args(1)
                 .value_name("PATH")
-                .value_parser(clap::value_parser!(String)) // Parse value as String
+                .value_parser(clap::value_parser!(String))
                 .required(true),
         )
         .arg(
             Arg::new("res")
                 .long("res")
                 .help("Specify screen resolution as <WIDTH> <HEIGHT>")
-                .action(ArgAction::Set) // Action to set the value
-                .num_args(2) // Exactly two u32 integers
-                .value_names(["WIDTH", "HEIGHT"]) // Names for the two values
-                .value_parser(clap::value_parser!(u32)) // Ensure values are parsed as u32
-                .required(true), // Make the --res argument mandatory
+                .action(ArgAction::Set)
+                .num_args(2)
+                .value_names(["WIDTH", "HEIGHT"])
+                .value_parser(clap::value_parser!(u32))
+                .required(true),
         )
         .arg(
-            Arg::new("log-info") // New argument for log_info
-                .long("log-info")
-                .help("Enable logging of additional information")
-                .action(ArgAction::SetTrue), // This action sets the argument to true if present
+            Arg::new("log")
+                .long("log")
+                .help("Set the log level (info, trace). Default is error.")
+                .value_name("LEVEL")
+                .value_parser(["info", "trace"])
+                .action(ArgAction::Set)
+                .required(false),
         )
         .get_matches();
 
-    // Path is required, so we can safely unwrap the value.
     let path = matches.get_one::<String>("path").unwrap().clone();
 
-    // Since --res is required, we can safely unwrap the values.
-    // get_many will always return Some now because the argument is required.
     let res_values = matches.get_many::<u32>("res").unwrap();
     let values: Vec<u32> = res_values.copied().collect();
     let resolution = (values[0], values[1]);
 
-    // Check if the --log-info flag was present
-    let log_info = matches.get_flag("log-info"); // get_flag returns true if the flag was present
-
-    let log_level = if log_info {
-        log::LevelFilter::Info
-    } else {
-        log::LevelFilter::Error
+    let log_level = match matches.get_one::<String>("log").map(String::as_str) {
+        Some("info") => log::LevelFilter::Info,
+        Some("trace") => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Error,
     };
 
-    // Return the CliArg struct
     CliArg {
         path,
         resolution,
