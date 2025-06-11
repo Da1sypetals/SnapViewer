@@ -8,6 +8,10 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 - Record memory snapsnot for your model. You may refer to [documentation](https://docs.pytorch.org/docs/stable/torch_cuda_memory.html);
 - Convert the snapshot to zip format with `convert_snap.py`.
 ```sh
+# first install dependencies
+pip install -r requirements.txt
+
+# then convert snapshot format
 python convert_snap.py -i snap/large.pickle -o snap/large.zip
 ```
 
@@ -18,10 +22,13 @@ python convert_snap.py -i snap/large.pickle -o snap/large.zip
 - Right click anywhere and (memory the cursor's $y$ coords is at) will show in stdout.
 
 
+## Notes
+Minimal dependency is **not** a goal.
+
 # TODO:
 - Embed this in a web page via WASM.
 
-# Notes
+# Notes for myself
 Run local for me: 
 ```sh
 cargo run -- -p snap/block8_len100.zip --res 2400 1080 --log-info
