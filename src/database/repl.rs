@@ -2,8 +2,15 @@ use clap::{Arg, ArgAction, Command};
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 use snapviewer::allocation::Allocation;
-use snapviewer::database::sqlite::AllocationDatabase;
+use snapviewer::database::sqlite::{AllocationDatabase, CREATE_SQL};
 use snapviewer::load::read_snap;
+
+pub const HELP_MSG: &str = "
+🛢️ Execute any SqLite commands.
+✨ Special commands:
+        help: display this help message
+        quit: exit SqLite REPL
+";
 
 #[derive(Debug)]
 pub struct CliArg {
@@ -46,34 +53,54 @@ pub fn cli() -> CliArg {
     CliArg { path, log_level }
 }
 
+fn print_schema() {
+    println!("\n📊 Table schema:\n\n{}\n", CREATE_SQL);
+}
+
 pub fn repl(allocations: &[Allocation]) -> anyhow::Result<()> {
     let db = AllocationDatabase::from_allocations(allocations)?;
 
     // `()` can be used when no completer is required
     let mut rl = DefaultEditor::new()?;
 
+    print_schema();
+
     loop {
         let readline = rl.readline("sql> ");
         match readline {
+            // read line success
             Ok(line) => {
                 rl.add_history_entry(line.as_str())?;
                 let command = line.trim();
                 if command.len() == 0 {
                     continue;
                 }
-                if command == "quit" {
-                    println!("👋 Bye!");
-                    break;
-                }
-                match db.execute(command) {
-                    Ok(output) => {
-                        // rustfmt do not collapse
-                        println!("✅ SQL execution OK");
-                        println!("{}", output);
+
+                // determine: special command or SQL command
+                match command {
+                    "quit" => {
+                        println!("👋 Bye!");
+                        break;
                     }
-                    Err(e) => {
-                        println!("⚠️ SQL execution Error");
-                        println!("{}", e);
+                    "help" => {
+                        println!("{}", HELP_MSG);
+                    }
+                    "schema" => {
+                        print_schema();
+                    }
+                    sql_command => {
+                        // rustfmt avoid collapse
+                        match db.execute(sql_command) {
+                            Ok(output) => {
+                                // rustfmt do not collapse
+                                println!("✅ SQL execution OK");
+                                println!("{}", output);
+                            }
+                            Err(e) => {
+                                println!("⚠️ SQL execution Error");
+                                println!("{}", e);
+                            }
+                        }
                     }
                 }
             }
@@ -84,6 +111,7 @@ pub fn repl(allocations: &[Allocation]) -> anyhow::Result<()> {
                 println!("👋 Bye!");
                 break;
             }
+            // read line error
             Err(err) => {
                 println!("Internal rustyline error: {:?}", err);
                 break;
