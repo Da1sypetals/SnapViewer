@@ -71,7 +71,7 @@ fn app() -> anyhow::Result<()> {
 
     let allocs = read_snap(&args.path)?;
 
-    let render_loop = RenderLoop::from_allocations(allocs, args.resolution);
+    let render_loop = RenderLoop::from_allocations(allocs, args.resolution)?;
 
     render_loop.run();
 
