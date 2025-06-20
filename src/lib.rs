@@ -1,4 +1,5 @@
 pub mod allocation;
+pub mod database;
 pub mod geometry;
 pub mod load;
 pub mod render_data;
