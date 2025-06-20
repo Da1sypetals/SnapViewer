@@ -8,8 +8,9 @@ use snapviewer::load::read_snap;
 pub const HELP_MSG: &str = "
 🛢️ Execute any SqLite commands.
 ✨ Special commands:
-        help: display this help message
-        quit: exit SqLite REPL
+      --help: display this help message
+      --schema: display database schema of the memory snapshot
+      --quit: exit SqLite REPL
 ";
 
 #[derive(Debug)]
@@ -57,6 +58,10 @@ fn print_schema() {
     println!("\n📊 Table schema:\n\n{}\n", CREATE_SQL);
 }
 
+fn print_help() {
+    println!("{}", HELP_MSG);
+}
+
 pub fn repl(allocations: &[Allocation]) -> anyhow::Result<()> {
     let db = AllocationDatabase::from_allocations(allocations)?;
 
@@ -64,6 +69,7 @@ pub fn repl(allocations: &[Allocation]) -> anyhow::Result<()> {
     let mut rl = DefaultEditor::new()?;
 
     print_schema();
+    print_help();
 
     loop {
         let readline = rl.readline("sql> ");
@@ -77,29 +83,34 @@ pub fn repl(allocations: &[Allocation]) -> anyhow::Result<()> {
                 }
 
                 // determine: special command or SQL command
-                match command {
-                    "quit" => {
-                        println!("👋 Bye!");
-                        break;
+                if command.starts_with("--") {
+                    // is a special command
+                    match command {
+                        "--quit" => {
+                            println!("👋 Bye!");
+                            break;
+                        }
+                        "--help" => {
+                            print_help();
+                        }
+                        "--schema" => {
+                            print_schema();
+                        }
+                        _ => {
+                            println!("Unexpected special command: {}", command);
+                        }
                     }
-                    "help" => {
-                        println!("{}", HELP_MSG);
-                    }
-                    "schema" => {
-                        print_schema();
-                    }
-                    sql_command => {
-                        // rustfmt avoid collapse
-                        match db.execute(sql_command) {
-                            Ok(output) => {
-                                // rustfmt do not collapse
-                                println!("✅ SQL execution OK");
-                                println!("{}", output);
-                            }
-                            Err(e) => {
-                                println!("⚠️ SQL execution Error");
-                                println!("{}", e);
-                            }
+                } else {
+                    // is a SQL command
+                    match db.execute(command) {
+                        Ok(output) => {
+                            // rustfmt do not collapse
+                            println!("✅ SQL execution OK");
+                            println!("{}", output);
+                        }
+                        Err(e) => {
+                            println!("⚠️ SQL execution Error");
+                            println!("{}", e);
                         }
                     }
                 }
