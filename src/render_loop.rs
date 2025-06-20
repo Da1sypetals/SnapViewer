@@ -98,12 +98,15 @@ pub struct RenderLoop {
 
 impl RenderLoop {
     /// Executed at start
-    pub fn from_allocations(allocations: Vec<Allocation>, resolution: (u32, u32)) -> Self {
-        Self {
+    pub fn from_allocations(
+        allocations: Vec<Allocation>,
+        resolution: (u32, u32),
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
             trace_geom: TraceGeometry::from_allocations(allocations, resolution),
             resolution,
             selected_mesh: None,
-        }
+        })
     }
 
     pub fn run(mut self) {
@@ -200,12 +203,16 @@ impl RenderLoop {
                                 );
 
                                 // print memory position at cursor
+                                let indent = "\n    ";
                                 println!(
-                                    "Cursor is at memory: {}",
+                                    "Cursor is at :{}memory: {}{}timestamp: {}",
+                                    indent,
                                     format_bytes_precision(
-                                        self.trace_geom.world2memory(cursor_world_pos.y),
+                                        self.trace_geom.yworld2memory(cursor_world_pos.y),
                                         3
-                                    )
+                                    ),
+                                    indent,
+                                    self.trace_geom.xworld2timestamp(cursor_world_pos.x),
                                 );
                             }
                             MouseButton::Middle => {}
@@ -237,8 +244,8 @@ impl RenderLoop {
             }
             let cam = win_trans.camera(frame_input.viewport);
 
-            let high_bytes = self.trace_geom.world2memory(win_trans.ytop_world());
-            let low_bytes = self.trace_geom.world2memory(win_trans.ybot_world());
+            let high_bytes = self.trace_geom.yworld2memory(win_trans.ytop_world());
+            let low_bytes = self.trace_geom.yworld2memory(win_trans.ybot_world());
             let ticks = tickgen.generate_memory_ticks(
                 low_bytes,
                 high_bytes,
