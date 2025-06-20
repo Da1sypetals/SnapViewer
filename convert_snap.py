@@ -4,18 +4,23 @@ import zipfile
 import logging
 from tqdm import tqdm
 
-# try to import orjson for faster json serialization
-try:
-    import orjson as json
-except ImportError:
-    import json
-
 # Configure logging to output to stdout with timestamps and log level
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
 )
+
+# try to import orjson for faster json serialization
+try:
+    import orjson as json
+
+    logging.info("Using orjson")
+except ImportError:
+    import json
+
+    logging.warning("Falling back to stdlib json")
+
 
 # Constants for file names used in the zip output
 ALLOCATIONS_FILE_NAME = "allocations.json"
@@ -196,9 +201,7 @@ def get_trace(dump: dict, device_id: int):
     # Validate device ID
     if device_id >= len(trace):
         expected = 0 if len(trace) == 1 else f"0 ~ {len(trace) - 1}"
-        logging.error(
-            f"Error: device id out of range, expected {expected}, got {device_id}"
-        )
+        logging.error(f"Error: device id out of range, expected {expected}, got {device_id}")
         sys.exit(1)
 
     # Warn if trace is empty
@@ -218,11 +221,9 @@ def cli():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", type=str, help="Path to snapshot pickle")
-    parser.add_argument("-o", "--output", type=str, help="Output zip file path")
-    parser.add_argument(
-        "-d", "--device", type=int, default=0, help="Device ID (default=0)"
-    )
+    parser.add_argument("-i", "--input", required=True, type=str, help="Path to snapshot pickle")
+    parser.add_argument("-o", "--output", required=True, type=str, help="Output zip file path")
+    parser.add_argument("-d", "--device", type=int, default=0, help="Device ID (default=0)")
     args = parser.parse_args()
 
     # Load the snapshot
@@ -243,14 +244,10 @@ def cli():
         elements_bytes = json.dumps(elements)
 
         logging.info("Saving allocations")
-        zf.writestr(
-            ALLOCATIONS_FILE_NAME, allocation_bytes, compress_type=zipfile.ZIP_DEFLATED
-        )
+        zf.writestr(ALLOCATIONS_FILE_NAME, allocation_bytes, compress_type=zipfile.ZIP_DEFLATED)
 
         logging.info("Saving elements")
-        zf.writestr(
-            ELEMENTS_FILE_NAME, elements_bytes, compress_type=zipfile.ZIP_DEFLATED
-        )
+        zf.writestr(ELEMENTS_FILE_NAME, elements_bytes, compress_type=zipfile.ZIP_DEFLATED)
 
     print("Trace lengths:")
     print(f"    {len(allocations) = }")
