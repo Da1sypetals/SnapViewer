@@ -72,7 +72,7 @@ impl Repl {
                         }
                     } else {
                         // normal command, echo for now
-                        println!("echo: {}", command)
+                        println!("Unknown command: {}", command)
                     }
                 }
                 Err(ReadlineError::Interrupted) => {
