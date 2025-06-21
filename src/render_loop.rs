@@ -263,7 +263,7 @@ impl RenderLoop {
                 &context,
             );
 
-            if let Ok(idx) = self.receiver.receiver.try_recv() {
+            if let Ok(idx) = self.receiver.alloc_idx.try_recv() {
                 info!("Show {}", idx);
                 self.show_alloc(&context, idx);
             }

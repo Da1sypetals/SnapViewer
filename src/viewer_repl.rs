@@ -1,20 +1,21 @@
+use rustyline::{DefaultEditor, error::ReadlineError};
 use std::sync::mpsc::{self};
 
-use rustyline::{DefaultEditor, error::ReadlineError};
-
 pub struct CommunicateSender {
-    pub sender: mpsc::Sender<usize>,
+    pub alloc_idx: mpsc::Sender<usize>,
 }
 
 pub struct CommunicateReceiver {
-    pub receiver: mpsc::Receiver<usize>,
+    pub alloc_idx: mpsc::Receiver<usize>,
 }
 
 pub fn make_communicate() -> (CommunicateSender, CommunicateReceiver) {
     let (sender, receiver) = mpsc::channel();
 
-    let sender = CommunicateSender { sender };
-    let receiver = CommunicateReceiver { receiver };
+    let sender = CommunicateSender { alloc_idx: sender };
+    let receiver = CommunicateReceiver {
+        alloc_idx: receiver,
+    };
 
     (sender, receiver)
 }
@@ -29,7 +30,7 @@ impl Repl {
         }
 
         let alloc_idx = args[0].parse()?;
-        self.sender.sender.send(alloc_idx)?;
+        self.sender.alloc_idx.send(alloc_idx)?;
 
         Ok(())
     }

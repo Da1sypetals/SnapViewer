@@ -81,10 +81,13 @@ fn app() -> anyhow::Result<()> {
 
     let repl = Repl::new(sender);
 
-    std::thread::spawn(move || {
+    let repl_handle = std::thread::spawn(move || {
         repl.run().unwrap();
     });
+
     render_loop.run();
+
+    repl_handle.join().unwrap();
 
     Ok(())
 }
