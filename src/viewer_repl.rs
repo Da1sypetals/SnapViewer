@@ -44,7 +44,7 @@ impl Repl {
         let mut rl = DefaultEditor::new()?;
 
         loop {
-            let readline = rl.readline("sql> ");
+            let readline = rl.readline("viewer> ");
             match readline {
                 // read line success
                 Ok(line) => {
