@@ -1,5 +1,9 @@
 use clap::{Arg, ArgAction, Command};
-use snapviewer::{load::read_snap, render_loop::RenderLoop};
+use snapviewer::{
+    load::read_snap,
+    render_loop::RenderLoop,
+    viewer_repl::{Repl, make_communicate},
+};
 
 #[derive(Debug)]
 pub struct CliArg {
@@ -71,8 +75,15 @@ fn app() -> anyhow::Result<()> {
 
     let allocs = read_snap(&args.path)?;
 
-    let render_loop = RenderLoop::from_allocations(allocs, args.resolution)?;
+    let (sender, receiver) = make_communicate();
 
+    let render_loop = RenderLoop::try_new(allocs, args.resolution, receiver)?;
+
+    let repl = Repl::new(sender);
+
+    std::thread::spawn(move || {
+        repl.run().unwrap();
+    });
     render_loop.run();
 
     Ok(())
