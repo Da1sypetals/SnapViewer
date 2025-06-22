@@ -1,5 +1,7 @@
 #![allow(warnings)]
 
+use std::f32::consts::E;
+
 use crate::{
     allocation::Allocation,
     geometry::TraceGeometry,
@@ -7,10 +9,11 @@ use crate::{
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
     utils::format_bytes_precision,
+    viewer_repl::CommunicateReceiver,
 };
 use log::info;
 use three_d::{
-    ClearState, ColorMaterial, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
+    ClearState, ColorMaterial, Context, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
     WindowSettings,
 };
 
@@ -94,16 +97,46 @@ pub struct RenderLoop {
     pub trace_geom: TraceGeometry,
     pub resolution: (u32, u32),
     pub selected_mesh: Option<Gm<Mesh, ColorMaterial>>,
+    pub receiver: CommunicateReceiver,
+    pub decaying_color: DecayingColor,
+    pub rdata: RenderData,
 }
 
 impl RenderLoop {
     /// Executed at start
-    pub fn from_allocations(allocations: Vec<Allocation>, resolution: (u32, u32)) -> Self {
-        Self {
-            trace_geom: TraceGeometry::from_allocations(allocations, resolution),
+    pub fn try_new(
+        allocations: Vec<Allocation>,
+        resolution: (u32, u32),
+        receiver: CommunicateReceiver,
+    ) -> anyhow::Result<Self> {
+        let trace_geom = TraceGeometry::from_allocations(allocations, resolution);
+        let rdata = RenderData::from_allocations(trace_geom.allocations.iter());
+
+        Ok(Self {
+            trace_geom,
             resolution,
             selected_mesh: None,
-        }
+            receiver,
+            decaying_color: DecayingColor::new(0.8, Srgba::WHITE),
+            rdata,
+        })
+    }
+
+    pub fn show_alloc(&mut self, context: &Context, idx: usize) {
+        // animate allocated mesh
+        let alloc_rdata = RenderData::from_allocations_with_z(
+            std::iter::once((&self.trace_geom.allocations[idx], Srgba::WHITE)),
+            0.005,
+        );
+        let alloc_mesh = Gm::new(
+            Mesh::new(&context, &alloc_rdata.to_cpu_mesh()),
+            self.decaying_color.material(),
+        );
+        self.selected_mesh = Some(alloc_mesh);
+
+        // The original color of the allocation
+        let original_color = self.rdata.alloc_colors[idx];
+        self.decaying_color.reset(original_color);
     }
 
     pub fn run(mut self) {
@@ -116,9 +149,7 @@ impl RenderLoop {
         .unwrap();
         let context = window.gl();
 
-        let rdata = RenderData::from_allocations(self.trace_geom.allocations.iter());
-
-        let cpumesh = rdata.to_cpu_mesh();
+        let cpumesh = self.rdata.to_cpu_mesh();
         info!("Moving mesh to GPU...");
         let mesh = Gm::new(
             Mesh::new(&context, &cpumesh),
@@ -139,9 +170,6 @@ impl RenderLoop {
 
         // start a timer
         let mut timer = FpsTimer::new();
-
-        // click-blink color
-        let mut decaying_color = DecayingColor::new(0.8, Srgba::WHITE);
 
         window.render_loop(move |frame_input| {
             // render loop start
@@ -173,23 +201,7 @@ impl RenderLoop {
                                         self.trace_geom.allocation_info(idx)
                                     );
 
-                                    // animate allocated mesh
-                                    let alloc_rdata = RenderData::from_allocations_with_z(
-                                        std::iter::once((
-                                            &self.trace_geom.allocations[idx],
-                                            Srgba::WHITE,
-                                        )),
-                                        0.005,
-                                    );
-                                    let alloc_mesh = Gm::new(
-                                        Mesh::new(&context, &alloc_rdata.to_cpu_mesh()),
-                                        decaying_color.material(),
-                                    );
-                                    self.selected_mesh = Some(alloc_mesh);
-
-                                    // The original color of the allocation
-                                    let original_color = rdata.alloc_colors[idx];
-                                    decaying_color.reset(original_color);
+                                    self.show_alloc(&context, idx);
                                 }
                             }
                             MouseButton::Right => {
@@ -200,12 +212,16 @@ impl RenderLoop {
                                 );
 
                                 // print memory position at cursor
+                                let indent = "\n    ";
                                 println!(
-                                    "Cursor is at memory: {}",
+                                    "Cursor is at :{}memory: {}{}timestamp: {}",
+                                    indent,
                                     format_bytes_precision(
-                                        self.trace_geom.world2memory(cursor_world_pos.y),
+                                        self.trace_geom.yworld2memory(cursor_world_pos.y),
                                         3
-                                    )
+                                    ),
+                                    indent,
+                                    self.trace_geom.xworld2timestamp(cursor_world_pos.x),
                                 );
                             }
                             MouseButton::Middle => {}
@@ -237,8 +253,8 @@ impl RenderLoop {
             }
             let cam = win_trans.camera(frame_input.viewport);
 
-            let high_bytes = self.trace_geom.world2memory(win_trans.ytop_world());
-            let low_bytes = self.trace_geom.world2memory(win_trans.ybot_world());
+            let high_bytes = self.trace_geom.yworld2memory(win_trans.ytop_world());
+            let low_bytes = self.trace_geom.yworld2memory(win_trans.ybot_world());
             let ticks = tickgen.generate_memory_ticks(
                 low_bytes,
                 high_bytes,
@@ -247,9 +263,14 @@ impl RenderLoop {
                 &context,
             );
 
+            if let Ok(idx) = self.receiver.alloc_idx.try_recv() {
+                info!("Show {}", idx);
+                self.show_alloc(&context, idx);
+            }
+
             let mut allocation_meshes = vec![&mesh];
             if let Some(selected_mesh) = &mut self.selected_mesh {
-                selected_mesh.material = decaying_color.material();
+                selected_mesh.material = self.decaying_color.material();
                 allocation_meshes.push(selected_mesh);
             }
 
@@ -267,7 +288,7 @@ impl RenderLoop {
                 );
 
             timer.tick();
-            decaying_color.tick(frame_input.elapsed_time / 1000.0); // this is MS
+            self.decaying_color.tick(frame_input.elapsed_time / 1000.0); // this is MS
 
             FrameOutput::default()
         });

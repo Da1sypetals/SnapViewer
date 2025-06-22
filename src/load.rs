@@ -1,5 +1,5 @@
 use crate::allocation::{Allocation, ElementData, RawAllocationData};
-use crate::utils::{ALLOCATIONS_FILE_NAME, ELEMENTS_FILE_NAME};
+use crate::utils::{ALLOCATIONS_FILE_NAME, ELEMENTS_FILE_NAME, get_spinner};
 use indicatif::ProgressIterator;
 use log::info;
 use std::fs::File;
@@ -58,14 +58,22 @@ pub fn read_snap_from_zip(zip_file_path: &str) -> anyhow::Result<RawSnap> {
 
             if filename == ALLOCATIONS_FILE_NAME {
                 info!("Reading {} to string", ALLOCATIONS_FILE_NAME);
+                let bar = get_spinner(&format!("Reading {} to string", ALLOCATIONS_FILE_NAME))?;
+
                 let mut content = String::new();
                 file.read_to_string(&mut content)?;
                 allocations = Some(content);
+
+                bar.finish();
             } else if filename == ELEMENTS_FILE_NAME {
                 info!("Reading {} to string", ELEMENTS_FILE_NAME);
+                let bar = get_spinner(&format!("Reading {} to string", ELEMENTS_FILE_NAME))?;
+
                 let mut content = String::new();
                 file.read_to_string(&mut content)?;
                 elements = Some(content);
+
+                bar.finish();
             }
         }
     }
@@ -85,6 +93,7 @@ pub fn read_snap_from_zip(zip_file_path: &str) -> anyhow::Result<RawSnap> {
 /// Executed at start
 pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
     info!("Parsing json to data structure...");
+    let bar = get_spinner("Parsing json to data structure...")?;
 
     let raw_allocs: Vec<RawAllocationData> =
         serde_json::from_str(&rawsnap.allocations).map_err(|e| {
@@ -103,6 +112,7 @@ pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
             e
         )
     })?;
+    bar.finish();
 
     // Check if the number of allocations matches the number of element data (callstacks)
     if raw_allocs.len() != elements_data.len() {

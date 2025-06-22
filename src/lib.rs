@@ -1,4 +1,5 @@
 pub mod allocation;
+pub mod database;
 pub mod geometry;
 pub mod load;
 pub mod render_data;
@@ -6,3 +7,4 @@ pub mod render_loop;
 pub mod ticks;
 pub mod ui;
 pub mod utils;
+pub mod viewer_repl;
