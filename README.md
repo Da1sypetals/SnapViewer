@@ -2,6 +2,8 @@
 
 A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_viz. Display large snapshots smoothly! 
 
+This branch contains only the viewer.
+
 ![alt text](snapviewer.gif)
 
 ## Preprocess
