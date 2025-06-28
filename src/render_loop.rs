@@ -265,7 +265,15 @@ impl RenderLoop {
 
             if let Ok(idx) = self.receiver.alloc_idx.try_recv() {
                 info!("Show {}", idx);
-                self.show_alloc(&context, idx);
+                if 0 <= idx && idx < self.trace_geom.allocations.len() as isize {
+                    self.show_alloc(&context, idx as usize);
+                } else {
+                    println!(
+                        "Invalid allocation index: {}, index range: [0, {})",
+                        idx,
+                        self.trace_geom.allocations.len()
+                    )
+                }
             }
 
             let mut allocation_meshes = vec![&mesh];
@@ -290,7 +298,18 @@ impl RenderLoop {
             timer.tick();
             self.decaying_color.tick(frame_input.elapsed_time / 1000.0); // this is MS
 
-            FrameOutput::default()
+            match self.receiver.terminate.try_recv() {
+                Ok(_) => {
+                    info!("Shutting from REPL thread");
+
+                    FrameOutput {
+                        exit: true,
+                        swap_buffers: false,
+                        wait_next_event: false,
+                    }
+                }
+                Err(_) => FrameOutput::default(),
+            }
         });
     }
 }

@@ -1,20 +1,34 @@
 use rustyline::{DefaultEditor, error::ReadlineError};
 use std::sync::mpsc::{self};
 
+pub const HELP_MESSAGE: &str = r#"
+Available commands:
+    --show <alloc_idx>  : show the mesh with the given index
+    --help              : show this help message
+    --quit              : quit viewer
+"#;
+
 pub struct CommunicateSender {
-    pub alloc_idx: mpsc::Sender<usize>,
+    pub alloc_idx: mpsc::Sender<isize>,
+    pub terminate: mpsc::Sender<()>,
 }
 
 pub struct CommunicateReceiver {
-    pub alloc_idx: mpsc::Receiver<usize>,
+    pub alloc_idx: mpsc::Receiver<isize>,
+    pub terminate: mpsc::Receiver<()>,
 }
 
 pub fn make_communicate() -> (CommunicateSender, CommunicateReceiver) {
-    let (sender, receiver) = mpsc::channel();
+    let (alloc_sender, alloc_receiver) = mpsc::channel();
+    let (terminate_sender, terminate_receiver) = mpsc::channel();
 
-    let sender = CommunicateSender { alloc_idx: sender };
+    let sender = CommunicateSender {
+        alloc_idx: alloc_sender,
+        terminate: terminate_sender,
+    };
     let receiver = CommunicateReceiver {
-        alloc_idx: receiver,
+        alloc_idx: alloc_receiver,
+        terminate: terminate_receiver,
     };
 
     (sender, receiver)
@@ -35,6 +49,7 @@ impl Repl {
         Ok(())
     }
 }
+
 impl Repl {
     pub fn new(sender: CommunicateSender) -> Self {
         Repl { sender }
@@ -65,6 +80,14 @@ impl Repl {
                                     Err(e) => println!("Error: {}", e),
                                 }
                             }
+                            "--help" => {
+                                println!("{}", HELP_MESSAGE);
+                            }
+                            "--quit" => {
+                                println!("👋 Bye!");
+                                self.sender.terminate.send(())?;
+                                break;
+                            }
                             _ => {
                                 //
                                 println!("Unknown command: {}", command);
@@ -80,6 +103,7 @@ impl Repl {
                 }
                 Err(ReadlineError::Eof) => {
                     println!("👋 Bye!");
+                    self.sender.terminate.send(())?;
                     break;
                 }
                 // read line error
