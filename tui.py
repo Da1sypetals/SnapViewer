@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Python TUI with Logging Area and Echo REPL
+Python TUI with Message Display Area and Echo REPL
 Features:
-- Left panel: Continuous logging every 0.3 seconds
+- Left panel: Displays messages from subprocess
 - Right panel: Echo REPL
-- Both panels are scrollable
-- Mouse click to switch focus
-- Ctrl+D to quit
+- Subprocess runs viewer() function
+- Inter-process communication via shared object
 """
 
 import os
+import multiprocessing
 from datetime import datetime
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -18,43 +18,74 @@ from textual.containers import ScrollableContainer
 from textual.binding import Binding
 from textual import events
 from snapviewer import sql_repl, execute_sql, viewer
-import queue
 
 
-class LoggingWidget(ScrollableContainer):
-    """Scrollable logging widget that adds entries every 0.3 seconds"""
+def subprocess_worker(shared_state):
+    """Worker function that runs in subprocess"""
+
+    def message_callback(message: str):
+        """Callback that updates shared state with new message"""
+        with shared_state.get_lock():
+            shared_state.value = message.encode("utf-8")
+
+    # Run viewer with the callback in the subprocess main thread
+    viewer(
+        message_callback,
+        str(os.path.join("..", "snapshots", "8spattn.zip")),
+        (2400, 1000),
+        "info",
+    )
+
+
+class MessageWidget(ScrollableContainer):
+    """Widget that displays messages from subprocess"""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.log_lines = []
-        self.counter = 0
+        self.current_message = "Hello!"
         self.focused = False
+        self.shared_state = None
+        self.subprocess_process = None
 
     def compose(self) -> ComposeResult:
-        yield Static("", id="log_content")
+        yield Static(self.current_message, id="log_content")
 
     def on_mount(self) -> None:
-        """Start logging when widget is mounted"""
-        self.add_log_entry()  # Add first entry immediately
+        """Start subprocess and message checking"""
+        self.start_subprocess()
+        self.set_interval(0.1, self.check_messages)
 
-    def add_log_entry(self) -> None:
-        """Add a new log entry"""
-        self.counter += 1
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        log_entry = f"[{timestamp}] Log entry #{self.counter}"
-        self.log_lines.append(log_entry)
+    def start_subprocess(self) -> None:
+        """Start the subprocess with viewer"""
+        # Create shared object for inter-process communication
+        # Using Array with lock for thread-safe access
+        self.shared_state = multiprocessing.Array("c", 1048576)
 
-        # Keep only last 1000 entries to prevent memory issues
-        if len(self.log_lines) > 1000:
-            self.log_lines = self.log_lines[-1000:]
+        # Initialize with default message
+        with self.shared_state.get_lock():
+            self.shared_state.value = self.current_message.encode("utf-8")
 
-        self.query_one("#log_content").update("\n".join(self.log_lines))
+        # Start subprocess
+        self.subprocess_process = multiprocessing.Process(
+            target=subprocess_worker,
+            args=(self.shared_state,),
+        )
+        self.subprocess_process.daemon = True
+        self.subprocess_process.start()
 
-        # Auto-scroll to bottom
-        # self.scroll_end(animate=False)
+    def check_messages(self) -> None:
+        """Check for message updates from subprocess every 0.3 seconds"""
+        if self.shared_state is not None:
+            try:
+                with self.shared_state.get_lock():
+                    new_message = self.shared_state.value.decode("utf-8").rstrip("\x00")
+                    if new_message != self.current_message:
+                        self.current_message = new_message
+            except Exception:
+                pass  # Handle decoding errors gracefully
 
-        # Schedule next log entry
-        self.set_timer(0.3, self.add_log_entry)
+        # Update log content
+        self.query_one("#log_content").update(self.current_message)
 
     def on_focus(self) -> None:
         self.focused = True
@@ -63,6 +94,12 @@ class LoggingWidget(ScrollableContainer):
     def on_blur(self) -> None:
         self.focused = False
         self.remove_class("focused")
+
+    def cleanup(self) -> None:
+        """Clean up subprocess"""
+        if self.subprocess_process and self.subprocess_process.is_alive():
+            self.subprocess_process.terminate()
+            self.subprocess_process.join(timeout=1.0)
 
 
 class REPLWidget(Vertical):
@@ -92,10 +129,6 @@ class REPLWidget(Vertical):
             output = execute_sql(self.dbptr, command)
             self.output_lines.append(f"[{timestamp}] {output}")
 
-            # Keep only last 500 entries
-            # if len(self.output_lines) > 500:
-            #     self.output_lines = self.output_lines[-500:]
-
             self.query_one("#repl_content").update("\n".join(self.output_lines))
 
             # Auto-scroll to bottom
@@ -108,7 +141,6 @@ class REPLWidget(Vertical):
     def on_focus(self) -> None:
         self.focused = True
         self.add_class("focused")
-        # Focus the input when the widget gets focus
         self.query_one("#repl_input").focus()
 
     def on_blur(self) -> None:
@@ -116,15 +148,15 @@ class REPLWidget(Vertical):
         self.remove_class("focused")
 
 
-class LoggingREPLApp(App):
-    """Main TUI application"""
+class MessageREPLApp(App):
+    """Main TUI application with subprocess communication"""
 
     CSS = """
     Screen {
         layout: horizontal;
     }
     
-    #logging_panel {
+    #message_panel {
         width: 50%;
         border: solid $primary;
         margin: 1;
@@ -172,13 +204,13 @@ class LoggingREPLApp(App):
 
     def __init__(self):
         super().__init__()
-        self.title = "Python TUI - Logging & REPL"
+        self.title = "Python TUI - Messages & REPL"
         self.sub_title = "Ctrl+D to quit, Click to focus, Tab to switch"
 
     def compose(self) -> ComposeResult:
         """Create the UI layout"""
         with Horizontal():
-            yield LoggingWidget(id="logging_panel")
+            yield MessageWidget(id="message_panel")
             yield REPLWidget(id="repl_panel")
 
     def on_mount(self) -> None:
@@ -187,24 +219,28 @@ class LoggingREPLApp(App):
 
     def on_click(self, event: events.Click) -> None:
         """Handle mouse clicks to switch focus"""
-        # Get the widget under the mouse cursor
         widget, _ = self.get_widget_at(*event.screen_offset)
 
         if widget:
-            # Find the parent panel
             for ancestor in [widget] + list(widget.ancestors):
-                if ancestor.id in ["logging_panel", "repl_panel"]:
+                if ancestor.id in ["message_panel", "repl_panel"]:
                     ancestor.focus()
                     break
 
     def action_quit(self) -> None:
-        """Quit the application"""
+        """Quit the application and cleanup subprocess"""
+        # Clean up subprocess before quitting
+        message_widget = self.query_one("#message_panel")
+        message_widget.cleanup()
         self.exit()
 
 
 def main():
     """Run the application"""
-    app = LoggingREPLApp()
+    # Required for multiprocessing on some platforms
+    multiprocessing.set_start_method("spawn", force=True)
+
+    app = MessageREPLApp()
     app.run()
 
 
