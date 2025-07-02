@@ -18,7 +18,25 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
     python convert_snap.py -i snap/large.pickle -o snap/large.zip
     ```
 
-## Usage
+## Usage: Python Binding with TUI
+
+- If you don't have `maturin` on your environment, run
+  ```sh
+  pip install maturin
+  ```
+- Build the extension with
+  ```sh
+  maturin dev
+  ```
+- Run the application with
+  ```sh
+  python tui.py --log info --res 2400 1000 -p <path_to_your_snapshot>
+  ```
+
+> Tested on Windows and Linux.
+
+
+## Usage: Rust Binary
 
 ### Viewer
 
