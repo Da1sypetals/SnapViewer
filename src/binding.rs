@@ -55,7 +55,7 @@ fn execute_sql(db_ptr: u64, line: String) -> PyResult<String> {
         // is a special command
         match command {
             "--help" => Ok(HELP_MSG.into()),
-            "--schema" => Ok(format!("\n📊 Table schema:\n\n{}\n", CREATE_SQL)),
+            "--schema" => Ok(format!("\n  Table schema:\n\n{}\n", CREATE_SQL)),
             _ => Ok(format!("Unexpected special command: {}", command)),
         }
     } else {
@@ -63,9 +63,9 @@ fn execute_sql(db_ptr: u64, line: String) -> PyResult<String> {
         match (*db).execute(command) {
             Ok(output) => {
                 // rustfmt do not collapse
-                Ok(format!("✅ SQL execution OK\n{}", output))
+                Ok(format!("  SQL execution OK\n{}", output))
             }
-            Err(e) => Ok(format!("⚠️ SQL execution Error\n{}", e)),
+            Err(e) => Ok(format!("  SQL execution Error\n{}", e)),
         }
         // Ok(format!("Echo: {}", command))
     }

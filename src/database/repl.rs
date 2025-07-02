@@ -6,8 +6,8 @@ use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
 
 pub const HELP_MSG: &str = "
-🛢️ Execute any SqLite commands.
-✨ Special commands:
+  Execute any SqLite commands.
+  Special commands:
       --help: display this help message
       --schema: display database schema of the memory snapshot
       --quit: exit SqLite REPL
