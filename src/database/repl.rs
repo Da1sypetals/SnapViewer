@@ -1,9 +1,9 @@
+use crate::allocation::Allocation;
+use crate::database::sqlite::{AllocationDatabase, CREATE_SQL};
+use crate::load::read_snap;
 use clap::{Arg, ArgAction, Command};
 use rustyline::DefaultEditor;
 use rustyline::error::ReadlineError;
-use snapviewer::allocation::Allocation;
-use snapviewer::database::sqlite::{AllocationDatabase, CREATE_SQL};
-use snapviewer::load::read_snap;
 
 pub const HELP_MSG: &str = "
 🛢️ Execute any SqLite commands.

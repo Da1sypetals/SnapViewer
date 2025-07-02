@@ -5,14 +5,9 @@ edition = "2024"
 authors = ["da1sypetals"]
 
 
-[[bin]]
-name = "viewer"
-path = "src/main.rs"
-
-
-[[bin]]
-name = "sql-repl"
-path = "src/database/repl.rs"
+[lib]
+name = "snapviewer"
+crate-type = ["cdylib"]
 
 
 [dependencies]
@@ -22,6 +17,7 @@ indicatif = "0.17.11"
 log = "0.4.27"
 nalgebra = "0.33.2"
 pretty_env_logger = "0.5.0"
+pyo3 = "0.25.1"
 rand = "0.9.1"
 rusqlite = "0.36.0"
 rustyline = "16.0.0"
@@ -32,4 +28,5 @@ zip = "4.0.0"
 
 
 [features]
+default = ["bundled-sqlite"]
 bundled-sqlite = ["rusqlite/bundled"]

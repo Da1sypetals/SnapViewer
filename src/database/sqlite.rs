@@ -12,6 +12,7 @@ pub const CREATE_SQL: &str = "CREATE TABLE allocs (
 pub const INSERT_SQL: &str =
     "INSERT INTO allocs (idx, size, start_time, end_time, callstack) VALUES (?, ?, ?, ?, ?)";
 
+#[derive(Debug)]
 pub struct AllocationDatabase {
     pub conn: Connection,
 }

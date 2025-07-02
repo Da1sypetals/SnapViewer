@@ -1,9 +1,9 @@
-use clap::{Arg, ArgAction, Command};
-use snapviewer::{
+use crate::{
     load::read_snap,
     render_loop::RenderLoop,
     viewer_repl::{Repl, make_communicate},
 };
+use clap::{Arg, ArgAction, Command};
 
 #[derive(Debug)]
 pub struct CliArg {
@@ -65,7 +65,7 @@ pub fn cli() -> CliArg {
     }
 }
 
-fn app() -> anyhow::Result<()> {
+pub fn app() -> anyhow::Result<()> {
     let args = cli();
 
     pretty_env_logger::formatted_timed_builder()
@@ -90,12 +90,4 @@ fn app() -> anyhow::Result<()> {
     repl_handle.join().unwrap();
 
     Ok(())
-}
-
-fn main() {
-    if let Err(e) = app() {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
-    // else quit normally
 }
