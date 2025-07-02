@@ -19,85 +19,48 @@ from textual.binding import Binding
 from textual import events
 from snapviewer import sql_repl, execute_sql, viewer
 import queue
-import threading
 
 
 class LoggingWidget(ScrollableContainer):
-    """
-    A scrollable widget designed to display log entries.
-    It receives log entries from an external queue (populated by the Rust extension).
-    """
+    """Scrollable logging widget that adds entries every 0.3 seconds"""
 
-    def __init__(self, log_queue: queue.Queue, **kwargs):
-        """
-        Initializes the LoggingWidget.
-
-        Args:
-            log_queue (queue.Queue): The queue from which to read log entries.
-        """
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.log_lines = []
-        self.log_queue = log_queue
+        self.counter = 0
         self.focused = False
 
     def compose(self) -> ComposeResult:
-        """Composes the child widgets for this container."""
         yield Static("", id="log_content")
 
     def on_mount(self) -> None:
-        """
-        Called when the widget is mounted in the DOM.
-        Starts a periodic check of the log queue.
-        """
-        def rust_callback(log_entry: str):
-                self.call_from_thread(self.log_queue.put, log_entry)
+        """Start logging when widget is mounted"""
+        self.add_log_entry()  # Add first entry immediately
 
-            # This is CRUCIAL: The call to start_rust_logging MUST be in a separate
-            # Python thread to prevent blocking the Textual UI.
-        threading.Thread(target=viewer, args=(rust_callback,str(os.path.join("..", "snapshots", "8spattn.zip")), (2400, 1000), "info"), daemon=True).start()
-        self.set_interval(0.03, self.check_log_queue)
-
-    def check_log_queue(self) -> None:
-        """
-        Checks the internal queue for new log entries and adds them to the display.
-        This method runs on the main Textual UI thread.
-        """
-        # Process all available items in the queue to avoid backlog.
-        while not self.log_queue.empty():
-            try:
-                # Get a log entry without blocking.
-                log_entry = self.log_queue.get_nowait()
-                self.add_log_entry(log_entry)
-            except queue.Empty:
-                # If the queue becomes empty during the loop, break.
-                break
-
-    def add_log_entry(self, log_entry: str) -> None:
-        """
-        Adds a new log entry to the list and updates the Static widget.
-
-        Args:
-            log_entry (str): The log string to add.
-        """
+    def add_log_entry(self) -> None:
+        """Add a new log entry"""
+        self.counter += 1
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        log_entry = f"[{timestamp}] Log entry #{self.counter}"
         self.log_lines.append(log_entry)
 
-        # Keep only the last 1000 entries to manage memory usage
-        # if len(self.log_lines) > 1000:
-        #     self.log_lines = self.log_lines[-1000:]
+        # Keep only last 1000 entries to prevent memory issues
+        if len(self.log_lines) > 1000:
+            self.log_lines = self.log_lines[-1000:]
 
-        # Update the content of the Static widget.
-        self.query_one("#log_content", Static).update("\n".join(self.log_lines))
+        self.query_one("#log_content").update("\n".join(self.log_lines))
 
-        # Auto-scroll to the bottom to show the latest entries.
-        self.scroll_end(animate=False)
+        # Auto-scroll to bottom
+        # self.scroll_end(animate=False)
+
+        # Schedule next log entry
+        self.set_timer(0.3, self.add_log_entry)
 
     def on_focus(self) -> None:
-        """Handles when the widget gains focus."""
         self.focused = True
         self.add_class("focused")
 
     def on_blur(self) -> None:
-        """Handles when the widget loses focus."""
         self.focused = False
         self.remove_class("focused")
 
@@ -107,7 +70,7 @@ class REPLWidget(Vertical):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.output_lines = ["Echo REPL - Type commands and press Enter"]
+        self.output_lines = ["[SqLite REPL] Type `--help` to see commands"]
         self.focused = False
         self.dbptr = sql_repl(os.path.join("..", "snapshots", "8spattn.zip"), "info")
 
@@ -211,12 +174,11 @@ class LoggingREPLApp(App):
         super().__init__()
         self.title = "Python TUI - Logging & REPL"
         self.sub_title = "Ctrl+D to quit, Click to focus, Tab to switch"
-        self.log_queue = queue.Queue()
 
     def compose(self) -> ComposeResult:
         """Create the UI layout"""
         with Horizontal():
-            yield LoggingWidget(self.log_queue, id="logging_panel")
+            yield LoggingWidget(id="logging_panel")
             yield REPLWidget(id="repl_panel")
 
     def on_mount(self) -> None:

@@ -31,6 +31,7 @@ fn sql_repl(path: String, log_level: String) -> PyResult<u64> {
     };
 
     let allocs = read_snap(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    // Terrible hack, but I did not find a better way.
     let db = Box::leak(Box::new(
         AllocationDatabase::from_allocations(&allocs)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
