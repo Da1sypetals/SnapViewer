@@ -79,7 +79,7 @@ class MessageWidget(ScrollableContainer):
         self.subprocess_process.start()
 
     def check_messages(self) -> None:
-        """Check for message updates from subprocess every 0.3 seconds"""
+        """Check for message updates from subprocess at fixed interval"""
         if self.shared_state is not None:
             try:
                 with self.shared_state.get_lock():
@@ -154,7 +154,7 @@ class REPLWidget(Vertical):
         self.remove_class("focused")
 
 
-class MessageREPLApp(App):
+class SnapViewerApp(App):
     """Main TUI application with subprocess communication"""
 
     CSS = """
@@ -174,10 +174,6 @@ class MessageREPLApp(App):
         border: solid $primary;
         margin: 1;
         padding: 1;
-    }
-    
-    .focused {
-        border: solid $accent;
     }
     
     #log_content {
@@ -211,7 +207,7 @@ class MessageREPLApp(App):
     def __init__(self, args):
         super().__init__()
         self.args = args  # Store args as an instance attribute
-        self.title = "Python TUI - Messages & REPL"
+        self.title = "SnapViewer Viewer and SqLite REPL"
         self.sub_title = "Ctrl+D to quit, Click to focus, Tab to switch"
 
     def compose(self) -> ComposeResult:
@@ -290,7 +286,7 @@ def main():
     # Required for multiprocessing on some platforms
     multiprocessing.set_start_method("spawn", force=True)
 
-    app = MessageREPLApp(args)  # Pass args to the app constructor
+    app = SnapViewerApp(args)  # Pass args to the app constructor
     app.run()
 
 
