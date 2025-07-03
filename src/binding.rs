@@ -209,7 +209,15 @@ fn run_render_loop(mut rl: RenderLoop, callback: PyObject) {
 
         if let Ok(idx) = rl.receiver.alloc_idx.try_recv() {
             info!("Show {}", idx);
-            rl.show_alloc(&context, idx);
+            if 0 <= idx && idx < rl.trace_geom.allocations.len() as isize {
+                rl.show_alloc(&context, idx as usize);
+            } else {
+                println!(
+                    "Invalid allocation index: {}, index range: [0, {})",
+                    idx,
+                    rl.trace_geom.allocations.len()
+                )
+            }
         }
 
         let mut allocation_meshes = vec![&mesh];

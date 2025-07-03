@@ -20,6 +20,11 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
 ## Usage: Python Binding with TUI
 
+- First you need a virtual environment (via `venv` or `conda`). Here we use venv on windows:
+  - Activate `venv` via
+    ```powershell
+    .\.venv\Scripts\activate
+    ```
 - If you don't have `maturin` on your environment, run
   ```sh
   pip install maturin
@@ -28,7 +33,7 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
   ```sh
   maturin dev
   ```
-- Run the application with
+- Specify resolution, log level and path to your snapshot, and run the application.
   ```sh
   python tui.py --log info --res 2400 1000 -p <path_to_your_snapshot>
   ```
