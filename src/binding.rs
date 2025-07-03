@@ -1,14 +1,10 @@
 use crate::{
-    database::{
-        repl::HELP_MSG,
-        sqlite::{AllocationDatabase, CREATE_SQL},
-    },
+    database::sqlite::{AllocationDatabase, CREATE_SQL},
     load::read_snap,
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
     utils::format_bytes_precision,
-    viewer_repl::{Repl, make_communicate},
 };
 use log::info;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
@@ -16,6 +12,13 @@ use three_d::{
     ClearState, ColorMaterial, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
     WindowSettings,
 };
+
+pub const HELP_MSG: &str = "
+Execute any SqLite commands.
+Special commands:
+    --help: display this help message
+    --schema: display database schema of the memory snapshot
+";
 
 #[pyfunction]
 fn sql_repl(path: String, log_level: String) -> PyResult<u64> {
@@ -63,9 +66,9 @@ fn execute_sql(db_ptr: u64, line: String) -> PyResult<String> {
         match (*db).execute(command) {
             Ok(output) => {
                 // rustfmt do not collapse
-                Ok(format!("  SQL execution OK\n{}", output))
+                Ok(format!("SQL execution OK\n{}", output))
             }
-            Err(e) => Ok(format!("  SQL execution Error\n{}", e)),
+            Err(e) => Ok(format!("(!) SQL execution Error\n{}", e)),
         }
         // Ok(format!("Echo: {}", command))
     }
@@ -207,19 +210,6 @@ fn run_render_loop(mut rl: RenderLoop, callback: PyObject) {
             &context,
         );
 
-        if let Ok(idx) = rl.receiver.alloc_idx.try_recv() {
-            info!("Show {}", idx);
-            if 0 <= idx && idx < rl.trace_geom.allocations.len() as isize {
-                rl.show_alloc(&context, idx as usize);
-            } else {
-                println!(
-                    "Invalid allocation index: {}, index range: [0, {})",
-                    idx,
-                    rl.trace_geom.allocations.len()
-                )
-            }
-        }
-
         let mut allocation_meshes = vec![&mesh];
         if let Some(selected_mesh) = &mut rl.selected_mesh {
             selected_mesh.material = rl.decaying_color.material();
@@ -271,9 +261,7 @@ fn viewer(
 
     let allocs = read_snap(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
-    let (_, receiver) = make_communicate();
-
-    let render_loop = RenderLoop::try_new(allocs, resolution, receiver)
+    let render_loop = RenderLoop::try_new(allocs, resolution)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
     run_render_loop(render_loop, callback);

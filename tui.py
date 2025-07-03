@@ -47,7 +47,9 @@ class MessageWidget(ScrollableContainer):
     def __init__(self, args, **kwargs):
         super().__init__(**kwargs)
         self.args = args  # Store args as an instance attribute
-        self.current_message = "Hello!"
+        self.current_message = """This panel will show:
+- On left click, info of the allocation you left clicked on;
+- On right click, your current mouse position (x -> timestamp, y -> memory)."""
         self.focused = False
         self.shared_state = None
         self.subprocess_process = None
@@ -113,7 +115,11 @@ class REPLWidget(Vertical):
     def __init__(self, args, **kwargs):
         super().__init__(**kwargs)
         self.args = args  # Store args as an instance attribute
-        self.output_lines = ["[SqLite REPL] Type `--help` to see commands"]
+        self.output_lines = [
+            "<SqLite REPL> This is a SqLite database storing the allocation data.",
+            "Type `--help` to see commands",
+            "Ctrl+D to quit.",
+        ]
         self.focused = False
         self.dbptr = sql_repl(self.args.path, self.args.log)
 
@@ -133,7 +139,7 @@ class REPLWidget(Vertical):
             timestamp = datetime.now().strftime("%H:%M:%S")
             self.output_lines.append(f"[{timestamp}] > {command}")
             output = execute_sql(self.dbptr, command)
-            self.output_lines.append(f"[{timestamp}] {output}")
+            self.output_lines.append(f"[{timestamp}]\n{output}")
 
             self.query_one("#repl_content").update("\n".join(self.output_lines))
 

@@ -1,7 +1,4 @@
 #![allow(warnings)]
-
-use std::f32::consts::E;
-
 use crate::{
     allocation::Allocation,
     geometry::TraceGeometry,
@@ -9,9 +6,9 @@ use crate::{
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
     utils::format_bytes_precision,
-    viewer_repl::CommunicateReceiver,
 };
 use log::info;
+use std::f32::consts::E;
 use three_d::{
     ClearState, ColorMaterial, Context, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
     WindowSettings,
@@ -97,18 +94,13 @@ pub struct RenderLoop {
     pub trace_geom: TraceGeometry,
     pub resolution: (u32, u32),
     pub selected_mesh: Option<Gm<Mesh, ColorMaterial>>,
-    pub receiver: CommunicateReceiver,
     pub decaying_color: DecayingColor,
     pub rdata: RenderData,
 }
 
 impl RenderLoop {
     /// Executed at start
-    pub fn try_new(
-        allocations: Vec<Allocation>,
-        resolution: (u32, u32),
-        receiver: CommunicateReceiver,
-    ) -> anyhow::Result<Self> {
+    pub fn try_new(allocations: Vec<Allocation>, resolution: (u32, u32)) -> anyhow::Result<Self> {
         let trace_geom = TraceGeometry::from_allocations(allocations, resolution);
         let rdata = RenderData::from_allocations(trace_geom.allocations.iter());
 
@@ -116,7 +108,6 @@ impl RenderLoop {
             trace_geom,
             resolution,
             selected_mesh: None,
-            receiver,
             decaying_color: DecayingColor::new(0.8, Srgba::WHITE),
             rdata,
         })
@@ -263,19 +254,6 @@ impl RenderLoop {
                 &context,
             );
 
-            if let Ok(idx) = self.receiver.alloc_idx.try_recv() {
-                info!("Show {}", idx);
-                if 0 <= idx && idx < self.trace_geom.allocations.len() as isize {
-                    self.show_alloc(&context, idx as usize);
-                } else {
-                    println!(
-                        "Invalid allocation index: {}, index range: [0, {})",
-                        idx,
-                        self.trace_geom.allocations.len()
-                    )
-                }
-            }
-
             let mut allocation_meshes = vec![&mesh];
             if let Some(selected_mesh) = &mut self.selected_mesh {
                 selected_mesh.material = self.decaying_color.material();
@@ -298,18 +276,7 @@ impl RenderLoop {
             timer.tick();
             self.decaying_color.tick(frame_input.elapsed_time / 1000.0); // this is MS
 
-            match self.receiver.terminate.try_recv() {
-                Ok(_) => {
-                    info!("Shutting from REPL thread");
-
-                    FrameOutput {
-                        exit: true,
-                        swap_buffers: false,
-                        wait_next_event: false,
-                    }
-                }
-                Err(_) => FrameOutput::default(),
-            }
+            FrameOutput::default()
         });
     }
 }
