@@ -58,7 +58,7 @@ fn execute_sql(db_ptr: u64, line: String) -> PyResult<String> {
         // is a special command
         match command {
             "--help" => Ok(HELP_MSG.into()),
-            "--schema" => Ok(format!("\n  Table schema:\n\n{}\n", CREATE_SQL)),
+            "--schema" => Ok(format!("\nTable schema:\n\n{}\n", CREATE_SQL)),
             _ => Ok(format!("Unexpected special command: {}", command)),
         }
     } else {
