@@ -21,7 +21,7 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 ## Usage: Python Binding with TUI
 - `git checkout python-app`
 - First you need a virtual environment (via `venv` or `conda`). Here we use venv on windows:
-  - Activate `venv` via
+  - Activate `venv`
     ```powershell
     .\.venv\Scripts\activate
     ```
