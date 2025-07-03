@@ -18,6 +18,7 @@ Execute any SqLite commands.
 Special commands:
     --help: display this help message
     --schema: display database schema of the memory snapshot
+    --clear: clear REPL output
 ";
 
 #[pyfunction]

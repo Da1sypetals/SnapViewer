@@ -112,14 +112,16 @@ class MessageWidget(ScrollableContainer):
 class REPLWidget(Vertical):
     """REPL widget with input and scrollable output"""
 
+    REPL_HINT = (
+        "<SqLite REPL> This is a SqLite database storing the allocation data.",
+        "Type `--help` to see commands",
+        "Ctrl+D to quit.",
+    )
+
     def __init__(self, args, **kwargs):
         super().__init__(**kwargs)
         self.args = args  # Store args as an instance attribute
-        self.output_lines = [
-            "<SqLite REPL> This is a SqLite database storing the allocation data.",
-            "Type `--help` to see commands",
-            "Ctrl+D to quit.",
-        ]
+        self.output_lines = list(REPLWidget.REPL_HINT)
         self.focused = False
         self.dbptr = sql_repl(self.args.path, self.args.log)
 
@@ -136,11 +138,15 @@ class REPLWidget(Vertical):
         """Handle command submission"""
         command = event.value.strip()
         if command:
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            self.output_lines.append(f"[{timestamp}] > {command}")
-            output = execute_sql(self.dbptr, command)
-            self.output_lines.append(f"[{timestamp}]\n{output}")
+            if command == "--clear":
+                self.output_lines = list(REPLWidget.REPL_HINT)
+            else:
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                self.output_lines.append(f"[{timestamp}] > {command}")
+                output = execute_sql(self.dbptr, command)
+                self.output_lines.append(f"[{timestamp}]\n{output}")
 
+            # update REPL content
             self.query_one("#repl_content").update("\n".join(self.output_lines))
 
             # Auto-scroll to bottom
