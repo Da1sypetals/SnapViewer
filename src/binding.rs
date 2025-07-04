@@ -25,8 +25,10 @@ Special commands:
 #[pyclass]
 pub struct Application {
     pub db_ptr: u64,
+    pub path: String,
     pub allocs: Vec<Allocation>,
     pub log_level: log::LevelFilter,
+    pub resolution: (u32, u32),
 }
 
 #[pymethods]
@@ -54,7 +56,9 @@ impl Application {
         Ok(Self {
             db_ptr: db as *mut AllocationDatabase as u64,
             allocs,
+            resolution,
             log_level,
+            path,
         })
     }
 
@@ -88,33 +92,10 @@ impl Application {
         }
     }
 
-    fn viewer(
-        &self,
-        py: Python<'_>,
-        callback: PyObject,
-        path: String,
-        resolution: (u32, u32),
-        log_level: String,
-    ) -> PyResult<()> {
-        let log_level = match log_level.as_str() {
-            "trace" => log::LevelFilter::Trace,
-            "info" => log::LevelFilter::Info,
-            lvl => {
-                return Err(PyRuntimeError::new_err(format!(
-                    "Expected `info` or `trace`, got {}",
-                    lvl
-                )));
-            }
-        };
+    fn viewer(&self, py: Python<'_>, callback: PyObject) -> PyResult<()> {
+        let allocs = read_snap(&self.path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
-        // pretty_env_logger::formatted_timed_builder()
-        //     .filter_level(log::LevelFilter::Off)
-        //     .filter_module("snapviewer", log_level)
-        //     .init();
-
-        let allocs = read_snap(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-
-        let render_loop = RenderLoop::try_new(allocs, resolution)
+        let render_loop = RenderLoop::try_new(allocs, self.resolution)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
         py.allow_threads(move || {
@@ -287,4 +268,11 @@ impl Application {
             FrameOutput::default()
         });
     }
+}
+
+/// A Python module implemented in Rust.
+#[pymodule]
+fn snapviewer(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<Application>()?;
+    Ok(())
 }
