@@ -8,18 +8,18 @@ Features:
 - Thread communication via direct callback to TUI
 """
 
+import argparse
 import os
+import signal
 import threading
 from datetime import datetime
-from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Static, Input
-from textual.containers import ScrollableContainer
-from textual.binding import Binding
+
+from snapviewer import execute_sql, sql_repl, viewer
 from textual import events
-from snapviewer import sql_repl, execute_sql, viewer
-import argparse
-import signal
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Horizontal, ScrollableContainer, Vertical
+from textual.widgets import Input, Static
 
 # Global reference to the app instance for callback access
 app_instance = None
