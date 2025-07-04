@@ -1,2 +1,3 @@
 orjson
 tqdm
+textual==3.5.0
