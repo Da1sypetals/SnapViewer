@@ -75,6 +75,10 @@ class REPLWidget(Vertical):
         self.output_lines = list(REPLWidget.REPL_HINT)
         self.focused = False
         self.dbptr = sql_repl(self.args.path, self.args.log)
+        self.command_history = []
+        self.history_index = (
+            -1
+        )  # -1 means no history item is currently selected (or a new command is being typed)
 
     def compose(self) -> ComposeResult:
         with ScrollableContainer(id="repl_output"):
@@ -89,6 +93,12 @@ class REPLWidget(Vertical):
         """Handle command submission"""
         command = event.value.strip()
         if command:
+            # Add command to history if not empty and not a duplicate of the last command
+            if not self.command_history or self.command_history[-1] != command:
+                self.command_history.append(command)
+            # After submitting, the history index should point to the "new command" state
+            self.history_index = len(self.command_history)
+
             if command == "--clear":
                 self.output_lines = list(REPLWidget.REPL_HINT)
             else:
@@ -106,6 +116,29 @@ class REPLWidget(Vertical):
 
         # Clear input
         event.input.value = ""
+
+    def on_key(self, event: events.Key) -> None:
+        """Handle key presses for command history navigation."""
+        if self.query_one("#repl_input").has_focus:
+            input_widget = self.query_one("#repl_input")
+
+            if event.key == "up":
+                event.prevent_default()  # Prevent default Textual behavior (e.g., cursor movement)
+                if self.command_history:
+                    # Move up in history
+                    self.history_index = max(0, self.history_index - 1)
+                    input_widget.value = self.command_history[self.history_index]
+            elif event.key == "down":
+                event.prevent_default()  # Prevent default Textual behavior
+                if self.command_history:
+                    # Move down in history
+                    self.history_index += 1
+                    if self.history_index >= len(self.command_history):
+                        # If we go past the last command, clear the input and reset index
+                        self.history_index = len(self.command_history)
+                        input_widget.value = ""
+                    else:
+                        input_widget.value = self.command_history[self.history_index]
 
     def on_focus(self) -> None:
         self.focused = True
@@ -263,6 +296,8 @@ def main():
 
     # Run viewer in main thread (blocking infinite loop)
     try:
+        # this calls into Rust extension.
+        # block current thread, but does NOT hold GIL.
         viewer(
             message_callback,
             args.path,
