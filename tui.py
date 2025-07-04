@@ -2,14 +2,14 @@
 """
 Python TUI with Message Display Area and Echo REPL
 Features:
-- Left panel: Displays messages from subprocess
+- Left panel: Displays messages from main thread
 - Right panel: Echo REPL
-- Subprocess runs viewer() function
-- Inter-process communication via shared object
+- Main thread runs viewer() function
+- Thread communication via direct callback to TUI
 """
 
 import os
-import multiprocessing
+import threading
 from datetime import datetime
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -19,79 +19,36 @@ from textual.binding import Binding
 from textual import events
 from snapviewer import sql_repl, execute_sql, viewer
 import argparse
+import signal
+
+# Global reference to the app instance for callback access
+app_instance = None
 
 
-# args = None # REMOVE THIS GLOBAL DECLARATION
-
-
-def subprocess_worker(shared_state, args_for_subprocess):
-    """Worker function that runs in subprocess"""
-
-    def message_callback(message: str):
-        """Callback that updates shared state with new message"""
-        with shared_state.get_lock():
-            shared_state.value = message.encode("utf-8")
-
-    # Run viewer with the callback in the subprocess main thread
-    viewer(
-        message_callback,
-        args_for_subprocess.path,
-        args_for_subprocess.resolution,
-        args_for_subprocess.log,
-    )
+def message_callback(message: str):
+    """Callback that updates TUI directly"""
+    global app_instance
+    if app_instance:
+        # Use call_from_thread for thread-safe UI updates
+        app_instance.call_from_thread(app_instance.update_message, message)
 
 
 class MessageWidget(ScrollableContainer):
-    """Widget that displays messages from subprocess"""
+    """Widget that displays messages from main thread"""
 
-    def __init__(self, args, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.args = args  # Store args as an instance attribute
         self.current_message = """This panel will show:
 - On left click, info of the allocation you left clicked on;
 - On right click, your current mouse position (x -> timestamp, y -> memory)."""
         self.focused = False
-        self.shared_state = None
-        self.subprocess_process = None
 
     def compose(self) -> ComposeResult:
         yield Static(self.current_message, id="log_content")
 
-    def on_mount(self) -> None:
-        """Start subprocess and message checking"""
-        self.start_subprocess()
-        self.set_interval(0.1, self.check_messages)
-
-    def start_subprocess(self) -> None:
-        """Start the subprocess with viewer"""
-        # Create shared object for inter-process communication
-        # Using Array with lock for thread-safe access
-        self.shared_state = multiprocessing.Array("c", 1048576)
-
-        # Initialize with default message
-        with self.shared_state.get_lock():
-            self.shared_state.value = self.current_message.encode("utf-8")
-
-        # Start subprocess
-        self.subprocess_process = multiprocessing.Process(
-            target=subprocess_worker,
-            args=(self.shared_state, self.args),  # Pass args to subprocess_worker
-        )
-        self.subprocess_process.daemon = True
-        self.subprocess_process.start()
-
-    def check_messages(self) -> None:
-        """Check for message updates from subprocess at fixed interval"""
-        if self.shared_state is not None:
-            try:
-                with self.shared_state.get_lock():
-                    new_message = self.shared_state.value.decode("utf-8").rstrip("\x00")
-                    if new_message != self.current_message:
-                        self.current_message = new_message
-            except Exception:
-                pass  # Handle decoding errors gracefully
-
-        # Update log content
+    def update_content(self, message: str):
+        """Update the message content"""
+        self.current_message = message
         self.query_one("#log_content").update(self.current_message)
 
     def on_focus(self) -> None:
@@ -101,12 +58,6 @@ class MessageWidget(ScrollableContainer):
     def on_blur(self) -> None:
         self.focused = False
         self.remove_class("focused")
-
-    def cleanup(self) -> None:
-        """Clean up subprocess"""
-        if self.subprocess_process and self.subprocess_process.is_alive():
-            self.subprocess_process.terminate()
-            self.subprocess_process.join(timeout=1.0)
 
 
 class REPLWidget(Vertical):
@@ -167,7 +118,7 @@ class REPLWidget(Vertical):
 
 
 class SnapViewerApp(App):
-    """Main TUI application with subprocess communication"""
+    """Main TUI application with thread communication"""
 
     CSS = """
     Screen {
@@ -225,8 +176,8 @@ class SnapViewerApp(App):
     def compose(self) -> ComposeResult:
         """Create the UI layout"""
         with Horizontal():
-            yield MessageWidget(self.args, id="message_panel")  # Pass args to MessageWidget
-            yield REPLWidget(self.args, id="repl_panel")  # Pass args to REPLWidget
+            yield MessageWidget(id="message_panel")
+            yield REPLWidget(self.args, id="repl_panel")
 
     def on_mount(self) -> None:
         """Initialize focus on the REPL"""
@@ -242,18 +193,29 @@ class SnapViewerApp(App):
                     ancestor.focus()
                     break
 
-    def action_quit(self) -> None:
-        """Quit the application and cleanup subprocess"""
-        # Clean up subprocess before quitting
+    def update_message(self, message: str):
+        """Update the message panel content (called from callback)"""
         message_widget = self.query_one("#message_panel")
-        message_widget.cleanup()
+        message_widget.update_content(message)
+
+    def action_quit(self) -> None:
+        """Quit the application"""
         self.exit()
+
+
+def run_tui(args):
+    """Run the TUI application in a separate thread"""
+    global app_instance
+    app_instance = SnapViewerApp(args)
+    app_instance.run()
+
+    print("Stopping SnapViewer application...")
+    pid = os.getpid()
+    os.kill(pid, signal.SIGTERM)
 
 
 def main():
     """Run the application"""
-    # global args # REMOVE THIS LINE
-
     parser = argparse.ArgumentParser(description="Python TUI with Message Display Area and Echo REPL")
 
     def positive_int(value):
@@ -295,11 +257,22 @@ def main():
         print(f"Error: The specified path '{args.path}' does not exist.")
         exit(1)  # Exit the program with an error code
 
-    # Required for multiprocessing on some platforms
-    multiprocessing.set_start_method("spawn", force=True)
+    # Start TUI in a separate thread (non-daemon so it stays alive)
+    tui_thread = threading.Thread(target=run_tui, args=(args,))
+    tui_thread.start()
 
-    app = SnapViewerApp(args)  # Pass args to the app constructor
-    app.run()
+    # Run viewer in main thread (blocking infinite loop)
+    try:
+        viewer(
+            message_callback,
+            args.path,
+            args.resolution,
+            args.log,
+        )
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+    except Exception as e:
+        print(f"Error in viewer: {e}")
 
 
 if __name__ == "__main__":
