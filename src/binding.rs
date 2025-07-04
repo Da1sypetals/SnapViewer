@@ -75,7 +75,13 @@ fn execute_sql(db_ptr: u64, line: String) -> PyResult<String> {
     }
 }
 
-fn run_render_loop(mut rl: RenderLoop, callback: PyObject) {
+fn run_render_loop(py: Python<'_>, rl: RenderLoop, callback: PyObject) {
+    py.allow_threads(move || {
+        run_render_loop_inner(rl, callback);
+    })
+}
+
+fn run_render_loop_inner(mut rl: RenderLoop, callback: PyObject) {
     let window = Window::new(WindowSettings {
         title: "SnapViewer".to_string(),
         min_size: rl.resolution,
@@ -239,6 +245,7 @@ fn run_render_loop(mut rl: RenderLoop, callback: PyObject) {
 
 #[pyfunction]
 fn viewer(
+    py: Python<'_>,
     callback: PyObject,
     path: String,
     resolution: (u32, u32),
@@ -265,7 +272,7 @@ fn viewer(
     let render_loop = RenderLoop::try_new(allocs, resolution)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
-    run_render_loop(render_loop, callback);
+    run_render_loop(py, render_loop, callback);
 
     Ok(())
 }
