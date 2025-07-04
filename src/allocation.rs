@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::fmt::{Display, Formatter, Result};
 
 // Corresponds to the Python Frame dataclass
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Frame {
     pub name: String, // function name
     pub filename: String,
@@ -18,7 +18,7 @@ impl Display for Frame {
 }
 
 // Corresponds to the Python Allocation dataclass
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Allocation {
     pub timesteps: Vec<u64>, // x coords, sorted
     pub offsets: Vec<u64>,   // y coords, length same as `timesteps`

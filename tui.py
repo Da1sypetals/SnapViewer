@@ -14,7 +14,7 @@ import signal
 import threading
 from datetime import datetime
 
-from snapviewer import execute_sql, sql_repl, viewer
+from snapviewer import SnapViewer
 from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -23,6 +23,7 @@ from textual.widgets import Input, Static
 
 # Global reference to the app instance for callback access
 app_instance = None
+snapviewer = None
 
 
 def message_callback(message: str):
@@ -74,7 +75,6 @@ class REPLWidget(Vertical):
         self.args = args  # Store args as an instance attribute
         self.output_lines = list(REPLWidget.REPL_HINT)
         self.focused = False
-        self.dbptr = sql_repl(self.args.path, self.args.log)
         self.command_history = []
         self.history_index = (
             -1
@@ -104,7 +104,7 @@ class REPLWidget(Vertical):
             else:
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.output_lines.append(f"[{timestamp}] > {command}")
-                output = execute_sql(self.dbptr, command)
+                output = snapviewer.execute_sql(command)
                 self.output_lines.append(f"[{timestamp}]\n{output}")
 
             # update REPL content
@@ -236,6 +236,11 @@ class SnapViewerApp(App):
         self.exit()
 
 
+def terminate():
+    pid = os.getpid()
+    os.kill(pid, signal.SIGTERM)
+
+
 def run_tui(args):
     """Run the TUI application in a separate thread"""
     global app_instance
@@ -243,8 +248,7 @@ def run_tui(args):
     app_instance.run()
 
     print("Stopping SnapViewer application...")
-    pid = os.getpid()
-    os.kill(pid, signal.SIGTERM)
+    terminate()
 
 
 def main():
@@ -290,24 +294,24 @@ def main():
         print(f"Error: The specified path '{args.path}' does not exist.")
         exit(1)  # Exit the program with an error code
 
+    global snapviewer
+    snapviewer = SnapViewer(args.path, args.resolution, args.log)
+
     # Start TUI in a separate thread (non-daemon so it stays alive)
-    tui_thread = threading.Thread(target=run_tui, args=(args,))
+    tui_thread = threading.Thread(target=run_tui, args=(args,), daemon=True)
     tui_thread.start()
 
     # Run viewer in main thread (blocking infinite loop)
     try:
         # this calls into Rust extension.
         # block current thread, but does NOT hold GIL.
-        viewer(
-            message_callback,
-            args.path,
-            args.resolution,
-            args.log,
-        )
+        snapviewer.viewer(message_callback)
     except KeyboardInterrupt:
         print("\nShutting down...")
+        terminate()
     except Exception as e:
         print(f"Error in viewer: {e}")
+        terminate()
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ Special commands:
 ";
 
 #[pyclass]
-pub struct Application {
+pub struct SnapViewer {
     pub db_ptr: u64,
     pub path: String,
     pub allocs: Vec<Allocation>,
@@ -32,7 +32,7 @@ pub struct Application {
 }
 
 #[pymethods]
-impl Application {
+impl SnapViewer {
     #[new]
     pub fn new(path: String, resolution: (u32, u32), log_level: String) -> PyResult<Self> {
         let log_level = match log_level.as_str() {
@@ -93,9 +93,7 @@ impl Application {
     }
 
     fn viewer(&self, py: Python<'_>, callback: PyObject) -> PyResult<()> {
-        let allocs = read_snap(&self.path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-
-        let render_loop = RenderLoop::try_new(allocs, self.resolution)
+        let render_loop = RenderLoop::try_new(self.allocs.clone(), self.resolution)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
         py.allow_threads(move || {
@@ -106,7 +104,7 @@ impl Application {
     }
 }
 
-impl Application {
+impl SnapViewer {
     pub fn run_render_loop_inner(&self, mut rl: RenderLoop, callback: PyObject) {
         let window = Window::new(WindowSettings {
             title: "SnapViewer".to_string(),
@@ -270,9 +268,9 @@ impl Application {
     }
 }
 
-/// A Python module implemented in Rust.
+/// Export module
 #[pymodule]
 fn snapviewer(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<Application>()?;
+    m.add_class::<SnapViewer>()?;
     Ok(())
 }
