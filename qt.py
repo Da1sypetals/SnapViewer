@@ -215,7 +215,7 @@ class SnapViewerApp(QMainWindow):
         super().__init__()
         self.args = args
         self.setWindowTitle("SnapViewer Viewer and SQLite REPL")
-        self.setGeometry(100, 100, 2400, 1200)
+        self.setGeometry(100, 100, 1600, 1200)
 
         # Set up communication object for signals
         self.comm = Communicate()
