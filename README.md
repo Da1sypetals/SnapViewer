@@ -34,9 +34,16 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
   maturin dev -r
   ```
 - Specify resolution, log level and path to your snapshot, and run the application.
-  ```sh
-  python tui.py --log info --res 2400 1000 -p <path_to_your_snapshot>
-  ```
+  - QT application: (only tested on linux)
+    ```sh
+    pip install textual==3.5.0
+    python qt.py --log info --res 2400 1000 -p <path_to_your_snapshot>
+    ```
+  - Textual TUI: (works on windows, has compatibility issues on linux)
+    ```sh
+    pip install pyqt6
+    python tui.py --log info --res 2400 1000 -p <path_to_your_snapshot>
+    ```
 
 > Tested on Windows and Linux.
 

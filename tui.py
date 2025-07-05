@@ -305,6 +305,7 @@ def main():
     try:
         # this calls into Rust extension.
         # block current thread, but does NOT hold GIL.
+        # MUST run on main thread.
         snapviewer.viewer(message_callback)
     except KeyboardInterrupt:
         print("\nShutting down...")
