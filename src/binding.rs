@@ -62,34 +62,36 @@ impl SnapViewer {
         })
     }
 
-    pub fn execute_sql(&self, line: String) -> PyResult<String> {
-        // Terrible hack, but I did not find a better way.
-        let db = unsafe { &mut *(self.db_ptr as *mut AllocationDatabase) };
+    pub fn execute_sql(&self, py: Python<'_>, line: String) -> PyResult<String> {
+        py.allow_threads(move || {
+            // Terrible hack, but I did not find a better way.
+            let db = unsafe { &mut *(self.db_ptr as *mut AllocationDatabase) };
 
-        let command = line.trim();
-        if command.len() == 0 {
-            return Ok("".into());
-        }
-
-        // determine: special command or SQL command
-        if command.starts_with("--") {
-            // is a special command
-            match command {
-                "--help" => Ok(HELP_MSG.into()),
-                "--schema" => Ok(format!("\nTable schema:\n\n{}\n", CREATE_SQL)),
-                _ => Ok(format!("Unexpected special command: {}", command)),
+            let command = line.trim();
+            if command.len() == 0 {
+                return Ok("".into());
             }
-        } else {
-            // is a SQL command
-            match (*db).execute(command) {
-                Ok(output) => {
-                    // rustfmt do not collapse
-                    Ok(format!("SQL execution OK\n{}", output))
+
+            // determine: special command or SQL command
+            if command.starts_with("--") {
+                // is a special command
+                match command {
+                    "--help" => Ok(HELP_MSG.into()),
+                    "--schema" => Ok(format!("\nTable schema:\n\n{}\n", CREATE_SQL)),
+                    _ => Ok(format!("Unexpected special command: {}", command)),
                 }
-                Err(e) => Ok(format!("(!) SQL execution Error\n{}", e)),
+            } else {
+                // is a SQL command
+                match (*db).execute(command) {
+                    Ok(output) => {
+                        // rustfmt do not collapse
+                        Ok(format!("SQL execution OK\n{}", output))
+                    }
+                    Err(e) => Ok(format!("(!) SQL execution Error\n{}", e)),
+                }
+                // Ok(format!("Echo: {}", command))
             }
-            // Ok(format!("Echo: {}", command))
-        }
+        })
     }
 
     fn viewer(&self, py: Python<'_>, callback: PyObject) -> PyResult<()> {
