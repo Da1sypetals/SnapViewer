@@ -56,28 +56,70 @@ class MessagePanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
 
         # Configure fonts
-        self.title_font = QFont("DejaVu Sans", 14, QFont.Weight.Bold)
-        self.mono_font = QFont("DejaVu Sans Mono", 14)
+        self.title_font = QFont("JetBrains Mono", 20, QFont.Weight.Bold)
+        self.mono_font = QFont("JetBrains Mono", 14)
 
         # Title
         title_label = QLabel("Messages")
         title_label.setFont(self.title_font)
         title_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: #e91e63;
+                padding: 10px;
+                border-bottom: 2px solid #e91e63;
+                margin-bottom: 10px;
+            }
+        """)
         layout.addWidget(title_label)
 
         # Message display
         self.text_widget = QTextEdit()
         self.text_widget.setFont(self.mono_font)
         self.text_widget.setReadOnly(True)
+        self.text_widget.setStyleSheet("""
+            QTextEdit {
+                background-color: #fce4ec;
+                border: 2px solid #f3d4dc;
+                border-radius: 10px;
+                padding: 15px;
+                color: #2d2d2d;
+                selection-background-color: #e91e63;
+                selection-color: white;
+            }
+            QTextEdit:focus {
+                border: 2px solid #e91e63;
+                background-color: #f3d4dc;
+            }
+            QScrollBar:vertical {
+                background: #f3d4dc;
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: #e91e63;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #c2185b;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
         layout.addWidget(self.text_widget)
 
         # Set initial message
         self.update_content("""This panel will show:
-- On left click, info of the allocation you left clicked on;
-- On right click, your current mouse position (x -> timestamp, y -> memory).""")
+- On left click, info of the allocation you left clicked on
+- On right click, your current mouse position (x -> timestamp, y -> memory)
+
+Welcome to SnapViewer! Ready to explore your data.""")
 
     def update_content(self, message: str):
         """Update the message content"""
@@ -124,42 +166,118 @@ class REPLPanel(QWidget):
     """REPL panel with input and scrollable output"""
 
     REPL_HINT = [
-        "<SqLite REPL> This is a SqLite database storing the allocation data.",
-        "Type `--help` to see commands",
-        "Ctrl+D to quit.",
+        "SQLite REPL - This is a SQLite database storing the allocation data.",
+        "Type `--help` to see available commands",
+        "Ctrl+D to quit application",
+        "Ready for your queries!",
     ]
 
     def __init__(self, args, parent=None):
         super().__init__(parent)
         self.args = args
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
 
         # Configure fonts
-        self.title_font = QFont("DejaVu Sans", 14, QFont.Weight.Bold)
-        self.mono_font = QFont("DejaVu Sans Mono", 14)
+        self.title_font = QFont("JetBrains Mono", 20, QFont.Weight.Bold)
+        self.mono_font = QFont("JetBrains Mono", 14)
 
         # Title
         title_label = QLabel("SQLite REPL")
         title_label.setFont(self.title_font)
         title_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        title_label.setStyleSheet("""
+            QLabel {
+                color: #e91e63;
+                padding: 10px;
+                border-bottom: 2px solid #e91e63;
+                margin-bottom: 10px;
+            }
+        """)
         layout.addWidget(title_label)
 
         # Output area
         self.output_text = QTextEdit()
         self.output_text.setFont(self.mono_font)
         self.output_text.setReadOnly(True)
+        self.output_text.setStyleSheet("""
+            QTextEdit {
+                background-color: #fce4ec;
+                border: 2px solid #f3d4dc;
+                border-radius: 10px;
+                padding: 15px;
+                color: #2d2d2d;
+                selection-background-color: #e91e63;
+                selection-color: white;
+            }
+            QTextEdit:focus {
+                border: 2px solid #e91e63;
+                background-color: #f3d4dc;
+            }
+            QScrollBar:vertical {
+                background: #f3d4dc;
+                width: 12px;
+                border-radius: 6px;
+            }
+            QScrollBar::handle:vertical {
+                background: #e91e63;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #c2185b;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
         layout.addWidget(self.output_text)
 
         # Input area
         input_frame = QWidget()
+        input_frame.setStyleSheet("""
+            QWidget {
+                background-color: #f3d4dc;
+                border-radius: 10px;
+                padding: 5px;
+            }
+        """)
         input_layout = QHBoxLayout(input_frame)
-        input_layout.setContentsMargins(0, 0, 0, 0)
+        input_layout.setContentsMargins(15, 10, 15, 10)
 
-        input_layout.addWidget(QLabel("> "))
+        prompt_label = QLabel("> ")
+        prompt_label.setStyleSheet("""
+            QLabel {
+                color: #e91e63;
+                font-weight: bold;
+                font-size: 16px;
+                background: transparent;
+                border: none;
+                padding: 0px;
+            }
+        """)
+        input_layout.addWidget(prompt_label)
+
         self.input_entry = HistoryLineEdit()
         self.input_entry.setFont(self.mono_font)
+        self.input_entry.setPlaceholderText("Enter SQL command or --help for options...")
         self.input_entry.returnPressed.connect(self.on_submit)
+        self.input_entry.setStyleSheet("""
+            QLineEdit {
+                background-color: white;
+                border: 1px solid #e91e63;
+                border-radius: 5px;
+                padding: 8px;
+                color: #2d2d2d;
+                selection-background-color: #e91e63;
+                selection-color: white;
+            }
+            QLineEdit:focus {
+                border: 2px solid #e91e63;
+                background-color: #fff5f8;
+            }
+        """)
         input_layout.addWidget(self.input_entry)
         layout.addWidget(input_frame)
 
@@ -214,8 +332,39 @@ class SnapViewerApp(QMainWindow):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.setWindowTitle("SnapViewer Viewer and SQLite REPL")
+        self.setWindowTitle("SnapViewer - Memory Allocation Viewer & SQLite REPL")
         self.setGeometry(100, 100, 1600, 1200)
+
+        # Set application-wide style
+        self.setStyleSheet("""
+            QMainWindow {
+                background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+                                           stop: 0 #fff5f8, stop: 1 #fce4ec);
+            }
+            QWidget {
+                font-family: 'JetBrains Mono', monospace;
+            }
+            QMessageBox {
+                background-color: #fce4ec;
+                color: #2d2d2d;
+                font-family: 'JetBrains Mono', monospace;
+            }
+            QMessageBox QPushButton {
+                background-color: #e91e63;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 5px;
+                font-weight: bold;
+                font-family: 'JetBrains Mono', monospace;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #c2185b;
+            }
+            QMessageBox QPushButton:pressed {
+                background-color: #ad1457;
+            }
+        """)
 
         # Set up communication object for signals
         self.comm = Communicate()
@@ -223,12 +372,30 @@ class SnapViewerApp(QMainWindow):
 
         # Create main container
         main_widget = QWidget()
+        main_widget.setStyleSheet("""
+            QWidget {
+                background: transparent;
+            }
+        """)
         self.setCentralWidget(main_widget)
         main_layout = QHBoxLayout(main_widget)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
 
         # Create panels
         self.message_panel = MessagePanel()
         self.repl_panel = REPLPanel(args)
+
+        # Style the panels
+        panel_style = """
+            QWidget {
+                background-color: rgba(248, 187, 217, 0.3);
+                border-radius: 15px;
+                border: 1px solid #f3d4dc;
+            }
+        """
+        self.message_panel.setStyleSheet(panel_style)
+        self.repl_panel.setStyleSheet(panel_style)
 
         main_layout.addWidget(self.message_panel, 1)
 
@@ -236,6 +403,14 @@ class SnapViewerApp(QMainWindow):
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.VLine)
         separator.setFrameShadow(QFrame.Shadow.Sunken)
+        separator.setStyleSheet("""
+            QFrame {
+                color: #e91e63;
+                background-color: #e91e63;
+                border: none;
+                max-width: 2px;
+            }
+        """)
         main_layout.addWidget(separator)
 
         main_layout.addWidget(self.repl_panel, 1)
@@ -250,13 +425,15 @@ class SnapViewerApp(QMainWindow):
 
     def closeEvent(self, event):
         """Handle window close event"""
-        reply = QMessageBox.question(
-            self,
-            "Quit",
-            "Do you want to quit?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+        # Create a custom styled message box
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Quit SnapViewer")
+        msg_box.setText("Are you sure you want to quit SnapViewer?")
+        msg_box.setIcon(QMessageBox.Icon.Question)
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+
+        reply = msg_box.exec()
 
         if reply == QMessageBox.StandardButton.Yes:
             event.accept()
@@ -279,6 +456,23 @@ def run_gui(args):
     """Run the GUI application in a separate thread"""
     global app_instance
     app = QApplication(sys.argv)
+
+    # Load the JetBrains Mono font
+    font_path = os.path.join(os.path.dirname(__file__), "assets", "JetBrainsMono-Medium.ttf")
+    if os.path.exists(font_path):
+        from PyQt6.QtGui import QFontDatabase
+
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        if font_id == -1:
+            print(f"Warning: Could not load font from {font_path}")
+    else:
+        print(f"Warning: Font file not found at {font_path}")
+
+    # Set application icon and other properties
+    app.setApplicationName("SnapViewer")
+    app.setApplicationVersion("1.0")
+    app.setApplicationDisplayName("SnapViewer - Memory Allocation Viewer")
+
     app_instance = SnapViewerApp(args)
     app_instance.show()
     app.exec()  # Start the Qt event loop
