@@ -99,7 +99,7 @@ impl SnapViewer {
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
         py.allow_threads(move || {
-            self.run_render_loop_inner(render_loop, callback);
+            self.run_render_loop_impl(render_loop, callback);
         });
 
         Ok(())
@@ -107,7 +107,7 @@ impl SnapViewer {
 }
 
 impl SnapViewer {
-    pub fn run_render_loop_inner(&self, mut rl: RenderLoop, callback: PyObject) {
+    pub fn run_render_loop_impl(&self, mut rl: RenderLoop, callback: PyObject) {
         let window = Window::new(WindowSettings {
             title: "SnapViewer".to_string(),
             min_size: rl.resolution,

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Python GUI with Message Display Area and Echo REPL using PyQt6
+SnapViewer GUI using PyQt6
 Features:
 - Left panel: Displays messages from main thread
 - Right panel: Echo REPL

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Python TUI with Message Display Area and Echo REPL
+Snapviewer TUI using Textual
 Features:
 - Left panel: Displays messages from main thread
 - Right panel: Echo REPL
