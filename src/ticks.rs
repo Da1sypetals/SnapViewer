@@ -44,7 +44,7 @@ impl<'a> TickGenerator<'a> {
             .into_iter()
             .map(|bytes| {
                 let y_ratio = (bytes - low_bytes) as f32 / (high_bytes - low_bytes) as f32;
-                let text = format!("—— {}", format_bytes_precision(bytes as i64, 4));
+                let text = format!("—— {}", format_bytes_precision(bytes, 4));
                 self.generate_text_mesh(&text, y_ratio, scale, screen_center_world, context)
             })
             .collect()

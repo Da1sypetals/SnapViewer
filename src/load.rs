@@ -120,15 +120,14 @@ pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
             "Mismatch in the number of entries: {} allocations vs {} elements",
             raw_allocs.len(),
             elements_data.len()
-        )
-        .into());
+        ));
     }
 
     // Combine the data from raw_allocs and elements_data (callstacks)
     info!("Combining allocations and elements data...");
     let allocations: Vec<Allocation> = raw_allocs
         .into_iter()
-        .zip(elements_data.into_iter())
+        .zip(elements_data)
         .map(|(raw_alloc, element_data)| {
             let peak_base = *raw_alloc.offsets.iter().max().unwrap();
             let peak_timestamps = raw_alloc

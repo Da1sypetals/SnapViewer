@@ -1,3 +1,4 @@
+#![forbid(dead_code)]
 pub mod allocation;
 pub mod binding;
 pub mod database;

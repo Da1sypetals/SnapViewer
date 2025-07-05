@@ -258,7 +258,7 @@ impl SnapViewer {
                     //     .chain(&rectangle)
                     //     .chain(&circle)
                     //     .chain(&mesh),
-                    ticks.iter().chain(allocation_meshes.into_iter()),
+                    ticks.iter().chain(allocation_meshes),
                     &[],
                 );
 
