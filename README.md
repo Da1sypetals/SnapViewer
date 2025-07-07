@@ -38,6 +38,8 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
     ```sh
     pip install textual==3.5.0
     python qt.py --log info --res 2400 1000 -p <path_to_your_snapshot>
+    # if you encounter problem where viewer window is not opening / unexpectedly closing, use this alternative
+    python qtmp.py --log info --res 2400 1000 -p <path_to_your_snapshot>
     ```
   - Textual TUI: (works on windows, has compatibility issues on linux)
     ```sh
