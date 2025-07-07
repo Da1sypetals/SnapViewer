@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """
-SnapViewer GUI using PyQt6
+SnapViewer GUI using PyQt6 with IPC Communication
 Features:
 - Left panel: Displays messages from main thread
 - Right panel: Echo REPL
-- Main thread runs viewer() function
-- Process communication via multiprocessing.Queue and QTimer
+- Main process hosts the SnapViewer instance
+- All processes communicate via multiprocessing.Queue
+- SQL commands are executed in the main process and results returned via IPC
 """
 
 import argparse
 import os
 import sys
 import multiprocessing
-import time  # Added for waiting/polling
+import time
 from datetime import datetime
+from enum import Enum
+from dataclasses import dataclass
+from typing import Any, Optional
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QShortcut, QKeySequence, QFontDatabase
 from PyQt6.QtWidgets import (
@@ -30,9 +34,24 @@ from PyQt6.QtWidgets import (
 )
 from snapviewer import SnapViewer
 
-# Global reference to the app instance for callback access
-# This will now be set within the viewer_process, not the main orchestrator process.
-snapviewer = None
+
+class MessageType(Enum):
+    """Types of messages for IPC communication"""
+
+    VIEWER_MESSAGE = "viewer_message"
+    SQL_COMMAND = "sql_command"
+    SQL_RESULT = "sql_result"
+    SHUTDOWN = "shutdown"
+
+
+@dataclass
+class IPCMessage:
+    """Message structure for IPC communication"""
+
+    msg_type: MessageType
+    data: Any
+    request_id: Optional[str] = None
+    sender: Optional[str] = None
 
 
 class MessagePanel(QWidget):
@@ -107,8 +126,6 @@ Welcome to SnapViewer! Ready to explore your data.""")
         if isinstance(message, bytes):
             message = message.decode("utf-8", errors="replace")
         self.text_widget.setPlainText(message)
-        # Auto-scroll to bottom
-        # self.text_widget.verticalScrollBar().setValue(self.text_widget.verticalScrollBar().maximum())
 
 
 class HistoryLineEdit(QLineEdit):
@@ -152,9 +169,13 @@ class REPLPanel(QWidget):
         "Ready for your queries!",
     ]
 
-    def __init__(self, args, parent=None):
+    def __init__(self, args, command_queue, parent=None):
         super().__init__(parent)
         self.args = args
+        self.command_queue = command_queue
+        self.pending_requests = {}  # Track pending SQL requests
+        self.request_counter = 0
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
@@ -270,23 +291,46 @@ class REPLPanel(QWidget):
                 history.append(command)
             # After submitting, the history index should point to the "new command" state
             self.input_entry.history_index = len(history)
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+
             if command == "--clear":
                 self.output_lines = list(REPLPanel.REPL_HINT)
             else:
-                timestamp = datetime.now().strftime("%H:%M:%S")
                 self.output_lines.append(f"[{timestamp}] > {command}")
+
+                # Send SQL command to main process via IPC
+                self.request_counter += 1
+                request_id = f"sql_{self.request_counter}"
+
+                ipc_message = IPCMessage(
+                    msg_type=MessageType.SQL_COMMAND, data=command, request_id=request_id, sender="repl"
+                )
+
+                # Store the request for later matching with response
+                self.pending_requests[request_id] = {"command": command, "timestamp": timestamp}
+
                 try:
-                    # Access the global snapviewer instance here
-                    if snapviewer:
-                        output = snapviewer.execute_sql(command)
-                        self.output_lines.append(f"[{timestamp}]\n{output}")
-                    else:
-                        self.output_lines.append(f"[{timestamp}]\nError: Viewer not initialized.")
+                    self.command_queue.put(ipc_message)
                 except Exception as e:
-                    self.output_lines.append(f"[{timestamp}]\nError: {e}")
+                    self.output_lines.append(f"[{timestamp}]\nError: Failed to send command - {e}")
+
             self.update_output()
         # Clear input
         self.input_entry.clear()
+
+    def handle_sql_result(self, message: IPCMessage):
+        """Handle SQL result from main process"""
+        if message.request_id in self.pending_requests:
+            request_info = self.pending_requests.pop(message.request_id)
+            timestamp = request_info["timestamp"]
+
+            if isinstance(message.data, Exception):
+                self.output_lines.append(f"[{timestamp}]\nError: {message.data}")
+            else:
+                self.output_lines.append(f"[{timestamp}]\n{message.data}")
+
+            self.update_output()
 
     def update_output(self):
         """Update the output display"""
@@ -302,11 +346,13 @@ class REPLPanel(QWidget):
 class SnapViewerApp(QMainWindow):
     """Main GUI application with process communication"""
 
-    def __init__(self, args, message_queue, terminate_event):
+    def __init__(self, args, gui_to_main_queue, main_to_gui_queue, terminate_event):
         super().__init__()
         self.args = args
-        self.message_queue = message_queue
-        self.terminate_event = terminate_event  # Add the terminate event
+        self.gui_to_main_queue = gui_to_main_queue
+        self.main_to_gui_queue = main_to_gui_queue
+        self.terminate_event = terminate_event
+
         self.setWindowTitle("SnapViewer - Memory Allocation Viewer & SQLite REPL")
         self.setGeometry(100, 100, 1600, 1200)
         # Set application-wide style
@@ -342,7 +388,7 @@ class SnapViewerApp(QMainWindow):
         # Setup timer to check the message queue and termination event
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.check_message_queue)
-        self.timer.timeout.connect(self.check_termination_event)  # Check termination event
+        self.timer.timeout.connect(self.check_termination_event)
         self.timer.start(100)  # Check every 100ms
         # Create main container
         main_widget = QWidget()
@@ -357,7 +403,7 @@ class SnapViewerApp(QMainWindow):
         main_layout.setSpacing(20)
         # Create panels
         self.message_panel = MessagePanel()
-        self.repl_panel = REPLPanel(args)
+        self.repl_panel = REPLPanel(args, self.gui_to_main_queue)
         # Style the panels
         panel_style = """
             QWidget {
@@ -389,20 +435,29 @@ class SnapViewerApp(QMainWindow):
 
     def check_message_queue(self):
         """Check for messages from the main process"""
-        while not self.message_queue.empty():
-            message = self.message_queue.get_nowait()
-            self.update_message(message)
+        while True:
+            try:
+                message = self.main_to_gui_queue.get_nowait()
+                self.handle_ipc_message(message)
+            except:
+                break
+
+    def handle_ipc_message(self, message: IPCMessage):
+        """Handle different types of IPC messages"""
+        if message.msg_type == MessageType.VIEWER_MESSAGE:
+            self.message_panel.update_content(message.data)
+        elif message.msg_type == MessageType.SQL_RESULT:
+            self.repl_panel.handle_sql_result(message)
+        elif message.msg_type == MessageType.SHUTDOWN:
+            print("GUI: Received shutdown message from main process")
+            self.terminate_event.set()
+            QTimer.singleShot(0, QApplication.instance().quit)
 
     def check_termination_event(self):
         """Check if the main process has signaled termination"""
         if self.terminate_event.is_set():
-            print("GUI: Termination signal received from another process. Quitting.")
-            # Quit the QApplication cleanly
+            print("GUI: Termination signal received. Quitting.")
             QApplication.instance().quit()
-
-    def update_message(self, message: str):
-        """Update the message panel content"""
-        self.message_panel.update_content(message)
 
     def closeEvent(self, event):
         """Handle window close event"""
@@ -415,16 +470,23 @@ class SnapViewerApp(QMainWindow):
         msg_box.setDefaultButton(QMessageBox.StandardButton.No)
         reply = msg_box.exec()
         if reply == QMessageBox.StandardButton.Yes:
+            # Send shutdown message to main process
+            shutdown_message = IPCMessage(
+                msg_type=MessageType.SHUTDOWN, data="GUI initiated shutdown", sender="gui"
+            )
+            try:
+                self.gui_to_main_queue.put(shutdown_message)
+            except:
+                pass
+
             event.accept()
-            # Set the termination event to signal other processes to exit
             self.terminate_event.set()
-            # Allow event loop to process the quit signal
             QTimer.singleShot(0, QApplication.instance().quit)
         else:
             event.ignore()
 
 
-def run_gui(args, message_queue, terminate_event):
+def run_gui(args, gui_to_main_queue, main_to_gui_queue, terminate_event):
     """Run the GUI application in a separate process"""
     app = QApplication(sys.argv)
     # Load the JetBrains Mono font
@@ -439,47 +501,38 @@ def run_gui(args, message_queue, terminate_event):
     app.setApplicationName("SnapViewer")
     app.setApplicationVersion("1.0")
     app.setApplicationDisplayName("SnapViewer - Memory Allocation Viewer")
-    app_instance = SnapViewerApp(args, message_queue, terminate_event)
+    app_instance = SnapViewerApp(args, gui_to_main_queue, main_to_gui_queue, terminate_event)
     app_instance.show()
     app.exec()  # Start the Qt event loop
     print("GUI process stopped.")
 
 
-def run_viewer(args, message_queue, terminate_event):
+def run_viewer(args, viewer_to_main_queue, terminate_event):
     """Run the SnapViewer logic in a separate process"""
-    global snapviewer
-    snapviewer = SnapViewer(args.path, args.resolution, args.log)
-
-    def message_callback(message: str):
-        """Callback that sends messages to the GUI process via a queue"""
-        # Only put messages if the terminate event is not set, to avoid putting into a closed queue
-        if not terminate_event.is_set():
-            message_queue.put(message)
-
     try:
         print("Viewer process started.")
-        # This is the blocking call into Rust extension.
-        # It needs to periodically check the terminate_event or be designed
-        # to break its loop if a signal is received.
-        # For now, we assume snapviewer.viewer is an infinite loop that can be
-        # interrupted by a KeyboardInterrupt.
-        # We also need a way for the terminate_event to stop the viewer gracefully.
-        # This typically means the viewer itself should check the event, or we use
-        # a more aggressive termination.
-        snapviewer.viewer(message_callback)  # If viewer itself does not check for event, it will block.
+        snapviewer = SnapViewer(args.path, args.resolution, args.log)
+
+        def message_callback(message: str):
+            """Callback that sends messages to the main process via a queue"""
+            if not terminate_event.is_set():
+                ipc_message = IPCMessage(msg_type=MessageType.VIEWER_MESSAGE, data=message, sender="viewer")
+                viewer_to_main_queue.put(ipc_message)
+
+        # This is the blocking call into Rust extension
+        snapviewer.viewer(message_callback)
+
     except KeyboardInterrupt:
-        print("\nViewer: KeyboardInterrupt detected. Signalling termination.")
+        print("\nViewer: KeyboardInterrupt detected.")
     except Exception as e:
-        print(f"Viewer: Error in viewer: {e}. Signalling termination.")
+        print(f"Viewer: Error in viewer: {e}")
     finally:
-        # Signal all other processes to terminate
-        terminate_event.set()
-        print("Viewer process signalling termination.")
+        print("Viewer process finished.")
 
 
 def main():
-    """Run the application orchestrator"""
-    parser = argparse.ArgumentParser(description="Python GUI with Message Display Area and Echo REPL")
+    """Run the application orchestrator with SnapViewer in main process"""
+    parser = argparse.ArgumentParser(description="SnapViewer GUI with IPC Communication")
 
     def positive_int(value):
         ivalue = int(value)
@@ -504,70 +557,131 @@ def main():
     parser.add_argument(
         "--res",
         type=positive_int,
-        nargs=2,  # Expect exactly 2 arguments for resolution
-        default=[2400, 1000],  # Default as a list
-        metavar=("WIDTH", "HEIGHT"),  # Help text for the arguments
+        nargs=2,
+        default=[2400, 1000],
+        metavar=("WIDTH", "HEIGHT"),
         help="Specify resolution as two positive integers (WIDTH HEIGHT).",
     )
     args = parser.parse_args()
-    # Convert the resolution list to a tuple after parsing
     args.resolution = tuple(args.res)
+
     # Verify that the path exists
     if not os.path.exists(args.path):
         print(f"Error: The specified path '{args.path}' does not exist.")
-        sys.exit(1)  # Use sys.exit for clean exit in main thread
+        sys.exit(1)
 
     # Create communication channels
-    message_queue = multiprocessing.Queue()
+    gui_to_main_queue = multiprocessing.Queue()
+    main_to_gui_queue = multiprocessing.Queue()
+    viewer_to_main_queue = multiprocessing.Queue()
     terminate_event = multiprocessing.Event()
+
+    # Create SnapViewer instance in main process
+    print("Main: Initializing SnapViewer...")
+    try:
+        snapviewer = SnapViewer(args.path, args.resolution, args.log)
+        print("Main: SnapViewer initialized successfully.")
+    except Exception as e:
+        print(f"Main: Failed to initialize SnapViewer: {e}")
+        sys.exit(1)
 
     # Start GUI in a separate process
     gui_process = multiprocessing.Process(
-        target=run_gui, args=(args, message_queue, terminate_event), daemon=True
+        target=run_gui, args=(args, gui_to_main_queue, main_to_gui_queue, terminate_event), daemon=True
     )
     gui_process.start()
 
     # Start Viewer in a separate process
     viewer_process = multiprocessing.Process(
-        target=run_viewer, args=(args, message_queue, terminate_event), daemon=True
+        target=run_viewer, args=(args, viewer_to_main_queue, terminate_event), daemon=True
     )
     viewer_process.start()
 
-    print("Main orchestrator process started. Waiting for termination signal...")
+    print("Main: All processes started. Handling IPC communication...")
 
-    # Main orchestrator loop: wait for either process to signal termination
+    # Main process IPC loop
     try:
         while not terminate_event.is_set():
-            # Check if either process has exited unexpectedly
+            # Handle messages from GUI (SQL commands)
+            while True:
+                try:
+                    message = gui_to_main_queue.get_nowait()
+                    if message.msg_type == MessageType.SQL_COMMAND:
+                        try:
+                            result = snapviewer.execute_sql(message.data)
+                            response = IPCMessage(
+                                msg_type=MessageType.SQL_RESULT,
+                                data=result,
+                                request_id=message.request_id,
+                                sender="main",
+                            )
+                        except Exception as e:
+                            response = IPCMessage(
+                                msg_type=MessageType.SQL_RESULT,
+                                data=e,
+                                request_id=message.request_id,
+                                sender="main",
+                            )
+                        main_to_gui_queue.put(response)
+                    elif message.msg_type == MessageType.SHUTDOWN:
+                        print("Main: Received shutdown message from GUI")
+                        terminate_event.set()
+                        break
+                except:
+                    break
+
+            # Handle messages from Viewer (display messages)
+            while True:
+                try:
+                    message = viewer_to_main_queue.get_nowait()
+                    if message.msg_type == MessageType.VIEWER_MESSAGE:
+                        # Forward viewer messages to GUI
+                        main_to_gui_queue.put(message)
+                except:
+                    break
+
+            # Check if processes are still alive
             if not gui_process.is_alive():
-                print("Main: GUI process died unexpectedly. Signalling termination.")
+                print("Main: GUI process died unexpectedly.")
                 terminate_event.set()
                 break
             if not viewer_process.is_alive():
-                print("Main: Viewer process died unexpectedly. Signalling termination.")
+                print("Main: Viewer process died unexpectedly.")
                 terminate_event.set()
                 break
-            time.sleep(0.1)  # Poll for the event
+
+            time.sleep(0.01)  # Small delay to prevent busy waiting
 
     except KeyboardInterrupt:
         print("\nMain: KeyboardInterrupt detected. Signalling termination to all processes.")
-        terminate_event.set()  # Set the event to signal termination
+        terminate_event.set()
 
     finally:
+        # Send shutdown message to GUI
+        try:
+            shutdown_message = IPCMessage(
+                msg_type=MessageType.SHUTDOWN, data="Main process shutting down", sender="main"
+            )
+            main_to_gui_queue.put(shutdown_message)
+        except:
+            pass
+
         print("Main: Waiting for processes to join...")
-        # If processes are still alive, forcefully terminate them
+
+        # Wait for processes to terminate gracefully
+
+        # Force terminate if still alive
         if gui_process.is_alive():
-            print("Main: GUI process did not terminate gracefully, forcing exit.")
+            print("Main: GUI process exit.")
             gui_process.terminate()
         if viewer_process.is_alive():
-            print("Main: Viewer process did not terminate gracefully, forcing exit.")
+            print("Main: Viewer process exit.")
             viewer_process.terminate()
 
         print("Main: All processes shut down. Exiting application.")
-        sys.exit(0)  # Use sys.exit for a clean program exit
+        sys.exit(0)
 
 
 if __name__ == "__main__":
-    # Ensure multiprocessing starts cleanly on all platforms
     multiprocessing.freeze_support()
     main()
