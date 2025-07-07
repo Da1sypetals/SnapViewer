@@ -117,9 +117,7 @@ class MessagePanel(ttk.Frame):
             fg="#2d2d2d",
             selectbackground="#e91e63",
             selectforeground="white",
-            relief="solid",
-            bd=2,
-            highlightthickness=0,
+            highlightthickness=0,  # Remove highlight border
             insertbackground="#e91e63",
         )
         self.text_widget.pack(fill=tk.BOTH, expand=True)
@@ -265,9 +263,7 @@ class REPLPanel(ttk.Frame):
             fg="#2d2d2d",
             selectbackground="#e91e63",
             selectforeground="white",
-            relief="solid",
-            bd=2,
-            highlightthickness=0,
+            highlightthickness=0,  # Remove highlight border
             insertbackground="#e91e63",
         )
         self.output_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
@@ -358,7 +354,8 @@ class SnapViewerApp:
             "Title.TLabel", foreground="#e91e63", background="#fff5f8", font=("JetBrains Mono", 20, "bold")
         )
 
-        style.configure("Panel.TFrame", background="#f8bbdd", relief="solid", borderwidth=1)
+        # Remove the border from the Panel.TFrame style
+        style.configure("Panel.TFrame", background="#f8bbdd", relief="flat", borderwidth=0)
 
         # Create main container
         main_frame = ttk.Frame(self.root, padding="20")
