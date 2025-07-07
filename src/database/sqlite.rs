@@ -92,18 +92,18 @@ impl AllocationDatabase {
             let row_values = row_result?;
 
             output_string.push_str(&format!("\n\nRow {:>3}:\n", idx));
-            output_string.push_str("┌────────────────────────┬────────────────────────┐\n");
+            output_string.push_str("+------------------------+------------------------+\n");
 
             let mut callstack_str = None;
             for (col_name, row_value) in column_names.iter().zip(row_values) {
                 if col_name == "callstack" {
                     callstack_str = Some(format!("callstack:\n{}", row_value));
                 } else {
-                    output_string.push_str(&format!("│ {:<22} │ {:<22} │\n", col_name, row_value));
+                    output_string.push_str(&format!("| {:<22} | {:<22} |\n", col_name, row_value));
                 }
             }
 
-            output_string.push_str("└────────────────────────┴────────────────────────┘\n");
+            output_string.push_str("+------------------------+------------------------+\n");
 
             if let Some(callstack_str) = callstack_str {
                 output_string.push_str(&callstack_str);

@@ -35,29 +35,25 @@ impl Display for Allocation {
         // Callstack first
 
         // Other details in their original order
-        writeln!(f, "├── Size: {}", format_bytes(self.size as i64))?;
-        writeln!(f, "├── Peak Memory: {}", format_bytes(self.peak_mem as i64))?;
-        writeln!(f, "├── Peak Timestamps: {:?}", self.peak_timestamps)?;
+        writeln!(f, "|- Size: {}", format_bytes(self.size as i64))?;
+        writeln!(f, "|- Peak Memory: {}", format_bytes(self.peak_mem as i64))?;
+        writeln!(f, "|- Peak Timestamps: {:?}", self.peak_timestamps)?;
         writeln!(
             f,
-            "├── Timesteps: start {}, stop {}",
+            "|- Timesteps: start {}, stop {}",
             self.timesteps.first().unwrap_or(&0),
             self.timesteps.last().unwrap_or(&0)
         )?;
-        writeln!(f, "├── Offsets: omitted")?;
+        writeln!(f, "|- Offsets: omitted")?;
         // Or print offsets if desired:
         // writeln!(f, "└── Offsets: {:?}", self.offsets)?;
 
-        writeln!(f, "└── Callstack:")?;
+        writeln!(f, "|- Callstack:")?;
         if self.callstack.is_empty() {
-            writeln!(f, "    └── (empty callstack)")?;
+            writeln!(f, "    |- (empty callstack)")?;
         } else {
             for (i, frame) in self.callstack.iter().enumerate() {
-                let prefix = if i == self.callstack.len() - 1 {
-                    "    └──"
-                } else {
-                    "    ├──"
-                };
+                let prefix = "    |-";
                 writeln!(f, "{} ({}){}", prefix, i, frame)?;
             }
         }
