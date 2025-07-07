@@ -25,30 +25,23 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
     ```powershell
     .\.venv\Scripts\activate
     ```
-- If you don't have `maturin` on your environment, run
-  ```sh
-  pip install maturin
-  ```
-- Build the extension with
+  - Install dependencies
+    ```powershell
+    pip install -r requirements.txt
+    ```
+- Build the extension under release mode
   ```sh
   maturin dev -r
   ```
 - Specify resolution, log level and path to your snapshot, and run the application.
-  - QT application: (only tested on linux)
+  - Tkinter application (works on windows)
     ```sh
-    pip install textual==3.5.0
-    python qt.py --log info --res 2400 1000 -p <path_to_your_snapshot>
-    # if you encounter problem where viewer window is not opening / unexpectedly closing, use this alternative
-    python qtmp.py --log info --res 2400 1000 -p <path_to_your_snapshot>
+    python tk.py --log info --res 2400 1000 -p <path_to_your_snapshot>
     ```
   - Textual TUI: (works on windows, has compatibility issues on linux)
     ```sh
-    pip install pyqt6
     python tui.py --log info --res 2400 1000 -p <path_to_your_snapshot>
     ```
-
-> Tested on Windows and Linux.
-
 
 ## Notes
 - Minimal dependency is **not** a goal.
