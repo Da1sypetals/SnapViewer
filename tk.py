@@ -11,9 +11,9 @@ Features:
 import argparse
 import os
 import threading
-from datetime import datetime
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, font
+from datetime import datetime
+from tkinter import font, messagebox, scrolledtext, ttk
 
 from snapviewer import SnapViewer
 
