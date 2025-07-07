@@ -21,6 +21,15 @@ from snapviewer import SnapViewer
 app_instance = None
 snapviewer = None
 
+HELP_MSG = """Execute any SqLite commands.
+Special commands:
+    --help: display this help message
+    --schema: display database schema of the memory snapshot
+    --clear: clear REPL output
+    --find <pattern>: find the message panel (on the left) with a pattern.
+                      case INsensitive, does NOT support regex
+"""
+
 
 def message_callback(message: str):
     """Callback that updates GUI via thread-safe method"""
@@ -127,9 +136,7 @@ class MessagePanel(ttk.Frame):
         # Set initial message
         self.update_content("""This panel will show:
 - On left click, info of the allocation you left clicked on
-- On right click, your current mouse position (x -> timestamp, y -> memory)
-
-Welcome to SnapViewer! Ready to explore your data.""")
+- On right click, your current mouse position (x -> timestamp, y -> memory)""")
 
     def update_content(self, message: str):
         """Update the message content"""
@@ -175,9 +182,9 @@ class REPLPanel(ttk.Frame):
 
     REPL_HINT = [
         "SQLite REPL - This is a SQLite database storing the allocation data.",
-        "Type `--help` to see available commands",
-        "Ctrl+D to quit application",
-        "Ready for your queries!",
+        "Type `--help` to see available commands.",
+        "Type `--find <pattern>` to search messages.",
+        "Ctrl+D to quit application.",
     ]
 
     def __init__(self, parent, args):
@@ -305,13 +312,41 @@ class REPLPanel(ttk.Frame):
             if command == "--clear":
                 self.output_lines = list(REPLPanel.REPL_HINT)
             else:
+                # is input command
                 timestamp = datetime.now().strftime("%H:%M:%S")
                 self.output_lines.append(f"[{timestamp}] > {command}")
-                try:
-                    output = snapviewer.execute_sql(command)
-                    self.output_lines.append(f"[{timestamp}]\n{output}")
-                except Exception as e:
-                    self.output_lines.append(f"[{timestamp}]\nError: {e}")
+                # split at first whitespace
+                cmdlist = command.split(None, 1)
+                cmd = cmdlist[0]
+                pattern = cmdlist[1] if len(cmdlist) > 1 else None
+                if cmd == "--find":
+                    if not pattern:
+                        self.output_lines.append(f"[{timestamp}]\nUsage: --find <pattern>")
+                    else:
+                        global app_instance
+                        if app_instance and hasattr(app_instance, "message_panel"):
+                            message_content = app_instance.message_panel.text_widget.get("1.0", tk.END)
+                            lines = message_content.splitlines()
+                            found_lines = [line for line in lines if pattern.lower() in line.lower()]
+
+                            if found_lines:
+                                result = (
+                                    f"Found {len(found_lines)} matching lines for '{pattern}':\n"
+                                    + "\n".join(found_lines)
+                                )
+                                self.output_lines.append(f"[{timestamp}]\n{result}")
+                            else:
+                                self.output_lines.append(f"[{timestamp}]\nNo matches found for '{pattern}'.")
+                        else:
+                            self.output_lines.append(f"[{timestamp}]\nError: Could not access message panel.")
+                elif cmd == "--help":
+                    self.output_lines.append(f"[{timestamp}]\n{HELP_MSG}")
+                else:
+                    try:
+                        output = snapviewer.execute_sql(command)
+                        self.output_lines.append(f"[{timestamp}]\n{output}")
+                    except Exception as e:
+                        self.output_lines.append(f"[{timestamp}]\nError: {e}")
 
             self.update_output()
 
