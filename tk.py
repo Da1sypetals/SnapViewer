@@ -119,6 +119,8 @@ class MessagePanel(ttk.Frame):
             selectforeground="white",
             highlightthickness=0,  # Remove highlight border
             insertbackground="#e91e63",
+            padx=10,  # Added horizontal padding
+            pady=10,  # Added vertical padding
         )
         self.text_widget.pack(fill=tk.BOTH, expand=True)
 
@@ -265,6 +267,8 @@ class REPLPanel(ttk.Frame):
             selectforeground="white",
             highlightthickness=0,  # Remove highlight border
             insertbackground="#e91e63",
+            padx=10,  # Added horizontal padding
+            pady=10,  # Added vertical padding
         )
         self.output_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
