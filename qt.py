@@ -547,4 +547,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-Reimplement this application to use 2 processes for viewer and GUI, and pick proper IPC methods. Implement that either of the GUI or viewer shuts causes the application to shut.
