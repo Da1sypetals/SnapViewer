@@ -10,7 +10,6 @@ Features:
 
 import argparse
 import os
-import sys
 import threading
 from datetime import datetime
 import tkinter as tk
@@ -88,7 +87,7 @@ class MessagePanel(ttk.Frame):
                     font_family = "JetBrains Mono"
                 else:
                     font_family = "Consolas"
-            except:
+            except Exception as _:
                 # Final fallback to monospace
                 font_family = "Consolas"
 
@@ -96,7 +95,7 @@ class MessagePanel(ttk.Frame):
         try:
             self.title_font = font.Font(family=font_family, size=20, weight="bold")
             self.mono_font = font.Font(family=font_family, size=14)
-        except:
+        except Exception as _:
             # Ultimate fallback
             self.title_font = font.Font(family="Consolas", size=20, weight="bold")
             self.mono_font = font.Font(family="Consolas", size=14)
@@ -236,7 +235,7 @@ class REPLPanel(ttk.Frame):
                     font_family = "JetBrains Mono"
                 else:
                     font_family = "Consolas"
-            except:
+            except Exception as _:
                 # Final fallback to monospace
                 font_family = "Consolas"
 
@@ -244,7 +243,7 @@ class REPLPanel(ttk.Frame):
         try:
             self.title_font = font.Font(family=font_family, size=20, weight="bold")
             self.mono_font = font.Font(family=font_family, size=14)
-        except:
+        except Exception as _:
             # Ultimate fallback
             self.title_font = font.Font(family="Consolas", size=20, weight="bold")
             self.mono_font = font.Font(family="Consolas", size=14)
