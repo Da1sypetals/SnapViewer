@@ -14,14 +14,6 @@ use three_d::{
     WindowSettings,
 };
 
-pub const HELP_MSG: &str = "
-Execute any SqLite commands.
-Special commands:
-    --help: display this help message
-    --schema: display database schema of the memory snapshot
-    --clear: clear REPL output
-";
-
 #[pyclass]
 pub struct SnapViewer {
     pub db_ptr: u64,
@@ -76,7 +68,6 @@ impl SnapViewer {
             if command.starts_with("--") {
                 // is a special command
                 match command {
-                    "--help" => Ok(HELP_MSG.into()),
                     "--schema" => Ok(format!("\nTable schema:\n\n{}\n", CREATE_SQL)),
                     _ => Ok(format!("Unexpected special command: {}", command)),
                 }
