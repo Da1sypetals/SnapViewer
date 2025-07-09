@@ -374,11 +374,11 @@ class SnapViewerApp:
     def __init__(self, args):
         self.args = args
         self.root = tk.Tk()
-        self.setup_ui()
+        self.setup_ui(args.path)
 
-    def setup_ui(self):
+    def setup_ui(self, path: str):
         """Setup the main UI"""
-        self.root.title("SnapViewer - Memory Allocation Viewer & SQLite REPL")
+        self.root.title(f"SnapViewer - Memory Allocation Viewer & SQLite REPL ( Path: {path} )")
         self.root.geometry("1600x1200")
 
         # Configure colors and styling
