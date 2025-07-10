@@ -1,6 +1,10 @@
+use indicatif::{ProgressBar, ProgressStyle};
+use memory_stats::memory_stats;
 use std::time::Duration;
 
-use indicatif::{ProgressBar, ProgressStyle};
+pub fn memory_usage() -> f64 {
+    memory_stats().unwrap().virtual_mem as f64 / (1024.0 * 1024.0)
+}
 
 pub const ALLOCATIONS_FILE_NAME: &str = "allocations.json";
 pub const ELEMENTS_FILE_NAME: &str = "elements.json";

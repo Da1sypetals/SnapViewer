@@ -1,4 +1,6 @@
-use crate::{allocation::Allocation, database::data_structure::format_callstack};
+use crate::{
+    allocation::Allocation, database::data_structure::format_callstack, utils::memory_usage,
+};
 use indicatif::ProgressIterator;
 use rusqlite::Connection;
 
@@ -20,6 +22,10 @@ pub struct AllocationDatabase {
 impl AllocationDatabase {
     pub fn from_allocations(allocations: &[Allocation]) -> anyhow::Result<Self> {
         log::info!("Creating allocations database");
+        println!(
+            "Memory before inserting data to database: {} MiB",
+            memory_usage()
+        );
 
         let mut conn = Connection::open_in_memory()?;
 
@@ -40,6 +46,10 @@ impl AllocationDatabase {
             }
         }
         tx.commit()?;
+        println!(
+            "Memory after inserting data to database: {} MiB",
+            memory_usage()
+        );
 
         Ok(Self { conn })
     }

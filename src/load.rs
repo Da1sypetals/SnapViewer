@@ -1,5 +1,5 @@
 use crate::allocation::{Allocation, ElementData, RawAllocationData};
-use crate::utils::{ALLOCATIONS_FILE_NAME, ELEMENTS_FILE_NAME, get_spinner};
+use crate::utils::{ALLOCATIONS_FILE_NAME, ELEMENTS_FILE_NAME, get_spinner, memory_usage};
 use indicatif::ProgressIterator;
 use log::info;
 use std::fs::File;
@@ -65,6 +65,7 @@ pub fn read_snap_from_zip(zip_file_path: &str) -> anyhow::Result<RawSnap> {
                 allocations = Some(content);
 
                 bar.finish();
+                println!("Memory after loading allocs: {} MiB", memory_usage());
             } else if filename == ELEMENTS_FILE_NAME {
                 info!("Reading {} to string", ELEMENTS_FILE_NAME);
                 let bar = get_spinner(&format!("Reading {} to string", ELEMENTS_FILE_NAME))?;
@@ -74,6 +75,7 @@ pub fn read_snap_from_zip(zip_file_path: &str) -> anyhow::Result<RawSnap> {
                 elements = Some(content);
 
                 bar.finish();
+                println!("Memory after loading elems: {} MiB", memory_usage());
             }
         }
     }
@@ -103,6 +105,7 @@ pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
                 e
             )
         })?;
+    println!("Memory after deserializing allocs: {} MiB", memory_usage());
 
     // elements.json is a list, where each item has a "frames" key.
     let elements_data: Vec<ElementData> = serde_json::from_str(&rawsnap.elements).map_err(|e| {
@@ -113,6 +116,10 @@ pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
         )
     })?;
     bar.finish();
+    println!(
+        "Memory after deserializing elements: {} MiB",
+        memory_usage()
+    );
 
     // Check if the number of allocations matches the number of element data (callstacks)
     if raw_allocs.len() != elements_data.len() {
@@ -156,6 +163,10 @@ pub fn load_allocations(rawsnap: RawSnap) -> anyhow::Result<Vec<Allocation>> {
         })
         .progress()
         .collect();
+    println!(
+        "Memory after combining allocation data: {} MiB",
+        memory_usage()
+    );
 
     Ok(allocations)
 }

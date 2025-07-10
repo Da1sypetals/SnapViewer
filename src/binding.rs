@@ -5,7 +5,7 @@ use crate::{
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
-    utils::format_bytes_precision,
+    utils::{format_bytes_precision, memory_usage},
 };
 use log::info;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
@@ -44,6 +44,8 @@ impl SnapViewer {
             AllocationDatabase::from_allocations(&allocs)
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
         ));
+
+        println!("Memory after init: {} MiB", memory_usage());
 
         Ok(Self {
             db_ptr: db as *mut AllocationDatabase as u64,
@@ -86,8 +88,16 @@ impl SnapViewer {
     }
 
     fn viewer(&self, py: Python<'_>, callback: PyObject) -> PyResult<()> {
+        println!(
+            "Memory before initializing render loop: {} MiB",
+            memory_usage()
+        );
         let render_loop = RenderLoop::try_new(self.allocs.clone(), self.resolution)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        println!(
+            "Memory after initializaing render loop: {} MiB",
+            memory_usage()
+        );
 
         py.allow_threads(move || {
             self.run_render_loop_impl(render_loop, callback);

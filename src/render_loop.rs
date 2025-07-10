@@ -5,7 +5,7 @@ use crate::{
     render_data::RenderData,
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
-    utils::format_bytes_precision,
+    utils::{format_bytes_precision, memory_usage},
 };
 use log::info;
 use std::f32::consts::E;
@@ -102,7 +102,9 @@ impl RenderLoop {
     /// Executed at start
     pub fn try_new(allocations: Vec<Allocation>, resolution: (u32, u32)) -> anyhow::Result<Self> {
         let trace_geom = TraceGeometry::from_allocations(allocations, resolution);
+        println!("Memory after building geometry: {} MiB", memory_usage());
         let rdata = RenderData::from_allocations(trace_geom.allocations.iter());
+        println!("Memory after building render data: {} MiB", memory_usage());
 
         Ok(Self {
             trace_geom,
