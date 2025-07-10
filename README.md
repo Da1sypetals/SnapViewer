@@ -38,10 +38,6 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
     ```sh
     python tk.py --log info --res 2400 1000 -p <path_to_your_snapshot>
     ```
-  - Textual TUI: (works on windows, has compatibility issues on linux)
-    ```sh
-    python tui.py --log info --res 2400 1000 -p <path_to_your_snapshot>
-    ```
 
 ## Notes
 - Minimal dependency is **not** a goal.
