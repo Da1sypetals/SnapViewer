@@ -101,7 +101,7 @@ pub struct RenderLoop {
 impl RenderLoop {
     /// Executed at start
     pub fn try_new(allocations: Arc<[Allocation]>, resolution: (u32, u32)) -> anyhow::Result<Self> {
-        println!("Memory after building geometry: {} MiB", memory_usage());
+        println!("Memory before building geometry: {} MiB", memory_usage());
         let trace_geom = TraceGeometry::from_allocations(Arc::clone(&allocations), resolution);
         println!("Memory after building geometry: {} MiB", memory_usage());
         let rdata = RenderData::from_allocations(trace_geom.allocations.iter());
