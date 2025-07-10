@@ -207,8 +207,11 @@ def get_trace(dump: dict, device_id: int):
     # Warn if trace is empty
     if len(trace[device_id]) == 0:
         devices_with_trace = [i for i, tr in enumerate(trace) if len(tr) > 0]
-        print(f"Warning: requested device ({device_id}) has no trace in this snapshot.")
-        print(f"         Devices with trace: {devices_with_trace}")
+        print(
+            f"Warning: requested device ({device_id}) has no trace in this snapshot.\n"
+            f"         Devices with trace: {devices_with_trace}\n"
+            "         Use --device <device> to specify device index."
+        )
         sys.exit(1)
 
     return trace[device_id]
