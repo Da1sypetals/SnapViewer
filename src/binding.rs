@@ -5,7 +5,7 @@ use crate::{
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
-    utils::{format_bytes_precision, memory_usage},
+    utils::{format_bytes_precision, get_spinner, memory_usage},
 };
 use log::info;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
@@ -93,6 +93,8 @@ impl SnapViewer {
             "Memory before initializing render loop: {} MiB",
             memory_usage()
         );
+
+        let bar = get_spinner(&format!("Initializing render loop...")).unwrap();
         let (render_loop, cpu_mesh) =
             RenderLoop::initialize(Arc::clone(&self.allocs), self.resolution)
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
@@ -100,6 +102,7 @@ impl SnapViewer {
             "Memory after initializaing render loop: {} MiB",
             memory_usage()
         );
+        bar.finish();
 
         py.allow_threads(move || {
             self.run_render_loop_impl(render_loop, cpu_mesh, callback);
@@ -111,6 +114,7 @@ impl SnapViewer {
 
 impl SnapViewer {
     pub fn run_render_loop_impl(&self, mut rl: RenderLoop, cpu_mesh: CpuMesh, callback: PyObject) {
+        let bar = get_spinner(&format!("Initializing window and UI...")).unwrap();
         println!(
             "Memory before render loop init work: {} MiB",
             memory_usage()
@@ -147,6 +151,7 @@ impl SnapViewer {
 
         // start a timer
         let mut timer = FpsTimer::new();
+        bar.finish();
 
         println!("Memory at start of render loop: {} MiB", memory_usage());
         window.render_loop(move |frame_input| {
