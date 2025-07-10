@@ -6,7 +6,7 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
 ## Preprocessing
 
-1.  **Record Snapshot:** Generate a memory snapshot of your PyTorch model. Refer to the [official PyTorch documentation](https://www.google.com/search?q=https://pytorch.org/docs/stable/cuda.html%23memory-management) for detailed instructions.
+1.  **Record Snapshot:** Generate a memory snapshot of your PyTorch model. Refer to the [official PyTorch documentation](https://docs.pytorch.org/docs/stable/torch_cuda_memory.html) for detailed instructions.
 
 2.  **Convert to ZIP:** Convert the `.pickle` snapshot to a `.zip` format (compressed json) using `convert_snap.py`.
 
