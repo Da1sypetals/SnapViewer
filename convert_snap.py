@@ -37,13 +37,13 @@ def trace_to_allocation_data(device_trace):
     Returns:
         tuple: (allocations, elements)
     """
-    alloc_data = process_alloc_data(device_trace, plot_segments=False)
+    alloc_data = process_alloc_data(device_trace)
     allocations = alloc_data["allocations_over_time"][:-1]  # Exclude summarized entry
     elements = alloc_data["elements"]
     return allocations, elements
 
 
-def process_alloc_data(device_trace, plot_segments=False):
+def process_alloc_data(device_trace):
     """
     Processes the device trace into a structured format showing allocations over time.
 
@@ -60,17 +60,17 @@ def process_alloc_data(device_trace, plot_segments=False):
     addr_to_alloc = {}
 
     # Define which actions are treated as allocations/frees
-    alloc_actions = {"segment_alloc"} if plot_segments else {"alloc", "segment_alloc"}
-    free_actions = {"segment_free"} if plot_segments else {"free", "free_completed"}
+    free_actions = {"free", "free_completed"}
 
     logging.info("Processing events")
     for idx, event in enumerate(device_trace):
-        if event["action"] in alloc_actions:
-            # Register allocation event
+        if event["action"] == "alloc":
+            # If current action is allocation, Register allocation event
             elements.append(event)
             addr_to_alloc[event["addr"]] = len(elements) - 1
             actions.append(len(elements) - 1)
         elif event["action"] in free_actions:
+            # If current action is free
             # Handle free events, potentially unmatched ones
             if event["addr"] in addr_to_alloc:
                 actions.append(addr_to_alloc[event["addr"]])
