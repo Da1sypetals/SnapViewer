@@ -4,32 +4,6 @@ use log::info;
 use rand::Rng;
 use three_d::{CpuMesh, Srgba};
 
-// #[derive(Clone, Copy, Debug)]
-// pub struct Transform {
-//     pub scale: Vector2<f64>,
-//     pub translate: Vector2<f64>,
-// }
-// impl Transform {
-//     pub fn identity() -> Self {
-//         Transform {
-//             scale: Vector2::new(1.0, 1.0),
-//             translate: Vector2::new(0.0, 0.0),
-//         }
-//     }
-//     #[rustfmt::skip]
-//     pub fn to_mat4(self) -> three_d::Mat4 {
-//         // do not format
-//         three_d::Mat4::new(
-//             // column major
-//             self.scale.x as f32,0.0                ,0.0,self.translate.x as f32,
-//             0.0                ,self.scale.y as f32,0.0,self.translate.y as f32,
-//             0.0                ,0.0                ,1.0,0.0,
-//             0.0                ,0.0                ,0.0,1.0,
-//         )
-//         .transpose() // now row major
-//     }
-// }
-
 pub struct RenderData {
     pub verts: Vec<three_d::Vector3<f64>>,
     pub vert_colors: Vec<Srgba>,
