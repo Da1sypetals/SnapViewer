@@ -24,7 +24,11 @@ except ImportError:
 
 # Constants for file names used in the zip output
 ALLOCATIONS_FILE_NAME = "allocations.json"
-ELEMENTS_FILE_NAME = "elements.json"
+MAX_SHARD_LEN = 50_000
+
+
+def element_file_name(shard_idx: int):
+    return f"elements_{shard_idx}.json"
 
 
 def trace_to_allocation_data(device_trace):
@@ -243,14 +247,20 @@ def cli():
         logging.info("Dumping allocations to byte stream")
         allocation_bytes = json.dumps(allocations)
 
-        logging.info("Dumping elements to byte stream")
-        elements_bytes = json.dumps(elements)
-
         logging.info("Saving allocations")
         zf.writestr(ALLOCATIONS_FILE_NAME, allocation_bytes, compress_type=zipfile.ZIP_DEFLATED)
 
-        logging.info("Saving elements")
-        zf.writestr(ELEMENTS_FILE_NAME, elements_bytes, compress_type=zipfile.ZIP_DEFLATED)
+        num_shard = (len(elements) + MAX_SHARD_LEN - 1) // MAX_SHARD_LEN
+        for ishard in range(num_shard):
+            logging.info(f"Dumping elements to byte stream: shard {ishard} / {num_shard}")
+
+            start_index = ishard * MAX_SHARD_LEN
+            end_index = min((ishard + 1) * MAX_SHARD_LEN, len(elements))
+
+            elements_bytes = json.dumps(elements[start_index:end_index])
+
+            logging.info(f"Saving element: shard {ishard} / {num_shard}")
+            zf.writestr(element_file_name(ishard), elements_bytes, compress_type=zipfile.ZIP_DEFLATED)
 
     print("Trace lengths:")
     print(f"    {len(allocations) = }")
