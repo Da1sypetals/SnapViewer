@@ -52,7 +52,7 @@ pub fn read_snap(zip_file_path: &str) -> anyhow::Result<Arc<[Allocation]>> {
                 bar.finish();
                 println!("Memory after loading allocs: {} MiB", memory_usage());
 
-                let bar = get_spinner("Parsing json to data structure...")?;
+                let bar = get_spinner("Deserializing allocations...")?;
 
                 raw_allocs = serde_json::from_str(&content).map_err(|e| {
                     anyhow::anyhow!(
@@ -74,6 +74,7 @@ pub fn read_snap(zip_file_path: &str) -> anyhow::Result<Arc<[Allocation]>> {
                 bar.finish();
                 println!("Memory after loading elems: {} MiB", memory_usage());
 
+                let bar = get_spinner("Deserializing elements...")?;
                 elements = serde_json::from_str(&content).map_err(|e| {
                     anyhow::anyhow!(
                         "Failed to parse elements JSON from '{:?}': {}",
@@ -81,10 +82,12 @@ pub fn read_snap(zip_file_path: &str) -> anyhow::Result<Arc<[Allocation]>> {
                         e
                     )
                 })?;
+
                 println!(
                     "Memory after deserializing elements: {} MiB",
                     memory_usage()
                 );
+                bar.finish();
             }
         }
     }
