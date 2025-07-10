@@ -11,7 +11,7 @@ use log::info;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use std::sync::Arc;
 use three_d::{
-    ClearState, ColorMaterial, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
+    ClearState, ColorMaterial, CpuMesh, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
     WindowSettings,
 };
 
@@ -93,15 +93,16 @@ impl SnapViewer {
             "Memory before initializing render loop: {} MiB",
             memory_usage()
         );
-        let render_loop = RenderLoop::try_new(Arc::clone(&self.allocs), self.resolution)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let (render_loop, cpu_mesh) =
+            RenderLoop::initialize(Arc::clone(&self.allocs), self.resolution)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         println!(
             "Memory after initializaing render loop: {} MiB",
             memory_usage()
         );
 
         py.allow_threads(move || {
-            self.run_render_loop_impl(render_loop, callback);
+            self.run_render_loop_impl(render_loop, cpu_mesh, callback);
         });
 
         Ok(())
@@ -109,7 +110,11 @@ impl SnapViewer {
 }
 
 impl SnapViewer {
-    pub fn run_render_loop_impl(&self, mut rl: RenderLoop, callback: PyObject) {
+    pub fn run_render_loop_impl(&self, mut rl: RenderLoop, cpu_mesh: CpuMesh, callback: PyObject) {
+        println!(
+            "Memory before render loop init work: {} MiB",
+            memory_usage()
+        );
         let window = Window::new(WindowSettings {
             title: "SnapViewer".to_string(),
             min_size: rl.resolution,
@@ -119,15 +124,17 @@ impl SnapViewer {
         .unwrap();
         let context = window.gl();
 
-        let cpumesh = rl.rdata.to_cpu_mesh();
         info!("Moving mesh to GPU...");
-        let mesh = Gm::new(
-            Mesh::new(&context, &cpumesh),
+        let mesh: Gm<Mesh, ColorMaterial> = Gm::new(
+            Mesh::new(&context, &cpu_mesh),
             ColorMaterial {
                 color: Srgba::WHITE, // colors are mixed (component-wise multiplied)
                 ..Default::default()
             },
         );
+
+        // manually drop to free memory
+        drop(cpu_mesh);
 
         info!("Setting up window and UI...");
 
@@ -141,6 +148,7 @@ impl SnapViewer {
         // start a timer
         let mut timer = FpsTimer::new();
 
+        println!("Memory at start of render loop: {} MiB", memory_usage());
         window.render_loop(move |frame_input| {
             // render loop start
 

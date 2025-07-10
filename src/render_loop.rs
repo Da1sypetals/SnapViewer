@@ -2,7 +2,7 @@
 use crate::{
     allocation::Allocation,
     geometry::TraceGeometry,
-    render_data::RenderData,
+    render_data,
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
     utils::{format_bytes_precision, memory_usage},
@@ -10,8 +10,8 @@ use crate::{
 use log::info;
 use std::{f32::consts::E, rc::Rc, sync::Arc};
 use three_d::{
-    ClearState, ColorMaterial, Context, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
-    WindowSettings,
+    ClearState, ColorMaterial, Context, CpuMesh, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba,
+    Window, WindowSettings,
 };
 
 pub struct FpsTimer {
@@ -95,41 +95,47 @@ pub struct RenderLoop {
     pub resolution: (u32, u32),
     pub selected_mesh: Option<Gm<Mesh, ColorMaterial>>,
     pub decaying_color: DecayingColor,
-    pub rdata: RenderData,
+    pub alloc_colors: Vec<Srgba>,
 }
 
 impl RenderLoop {
     /// Executed at start
-    pub fn try_new(allocations: Arc<[Allocation]>, resolution: (u32, u32)) -> anyhow::Result<Self> {
+    pub fn initialize(
+        allocations: Arc<[Allocation]>,
+        resolution: (u32, u32),
+    ) -> anyhow::Result<(Self, CpuMesh)> {
         println!("Memory before building geometry: {} MiB", memory_usage());
         let trace_geom = TraceGeometry::from_allocations(Arc::clone(&allocations), resolution);
         println!("Memory after building geometry: {} MiB", memory_usage());
-        let rdata = RenderData::from_allocations(trace_geom.allocations.iter());
+        let (cpumesh, alloc_colors) = render_data::from_allocations(trace_geom.allocations.iter());
         println!("Memory after building render data: {} MiB", memory_usage());
 
-        Ok(Self {
-            trace_geom,
-            resolution,
-            selected_mesh: None,
-            decaying_color: DecayingColor::new(0.8, Srgba::WHITE),
-            rdata,
-        })
+        Ok((
+            Self {
+                trace_geom,
+                resolution,
+                selected_mesh: None,
+                decaying_color: DecayingColor::new(0.8, Srgba::WHITE),
+                alloc_colors,
+            },
+            cpumesh,
+        ))
     }
 
     pub fn show_alloc(&mut self, context: &Context, idx: usize) {
         // animate allocated mesh
-        let alloc_rdata = RenderData::from_allocations_with_z(
+        let (cpu_mesh, _) = render_data::from_allocations_with_z(
             std::iter::once((&self.trace_geom.allocations[idx], Srgba::WHITE)),
             0.005,
         );
         let alloc_mesh = Gm::new(
-            Mesh::new(&context, &alloc_rdata.to_cpu_mesh()),
+            Mesh::new(&context, &cpu_mesh),
             self.decaying_color.material(),
         );
         self.selected_mesh = Some(alloc_mesh);
 
         // The original color of the allocation
-        let original_color = self.rdata.alloc_colors[idx];
+        let original_color = self.alloc_colors[idx];
         self.decaying_color.reset(original_color);
     }
 }
