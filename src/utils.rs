@@ -2,10 +2,6 @@ use indicatif::{ProgressBar, ProgressStyle};
 use memory_stats::memory_stats;
 use std::time::Duration;
 
-pub fn memory_usage() -> f64 {
-    memory_stats().unwrap().virtual_mem as f64 / (1024.0 * 1024.0)
-}
-
 pub const ALLOCATIONS_FILE_NAME: &str = "allocations.json";
 pub const ELEMENTS_FILE_NAME: &str = "elements.json";
 pub const UNITS: [&str; 8] = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"];
@@ -27,6 +23,10 @@ pub const INTERVALS: [f64; 16] = [
     268435456.0_f64,
     1073741824.0_f64,
 ];
+
+pub fn memory_usage() -> f64 {
+    memory_stats().unwrap().virtual_mem as f64 / (1024.0 * 1024.0)
+}
 
 pub fn format_bytes(bytes: i64) -> String {
     let mut num = bytes as f64;
