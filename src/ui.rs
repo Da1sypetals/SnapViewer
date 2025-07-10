@@ -34,7 +34,7 @@ impl WindowTransform {
 
     pub fn set_zoom_limits(&mut self, low: f32, high: f32) {
         assert!(
-            low < high && low > 0.5 && high > 2.0,
+            low < high && low > 0.5 && high >= 2.0,
             "zoom limits must be between 0.5 and 2.0, got ({}, {})",
             low,
             high
