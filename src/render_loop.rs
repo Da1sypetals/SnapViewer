@@ -8,7 +8,7 @@ use crate::{
     utils::{format_bytes_precision, memory_usage},
 };
 use log::info;
-use std::f32::consts::E;
+use std::{f32::consts::E, rc::Rc, sync::Arc};
 use three_d::{
     ClearState, ColorMaterial, Context, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
     WindowSettings,
@@ -100,9 +100,9 @@ pub struct RenderLoop {
 
 impl RenderLoop {
     /// Executed at start
-    pub fn try_new(allocations: Vec<Allocation>, resolution: (u32, u32)) -> anyhow::Result<Self> {
-        println!("Memory before building geometry: {} MiB", memory_usage());
-        let trace_geom = TraceGeometry::from_allocations(allocations, resolution);
+    pub fn try_new(allocations: Arc<[Allocation]>, resolution: (u32, u32)) -> anyhow::Result<Self> {
+        println!("Memory after building geometry: {} MiB", memory_usage());
+        let trace_geom = TraceGeometry::from_allocations(Arc::clone(&allocations), resolution);
         println!("Memory after building geometry: {} MiB", memory_usage());
         let rdata = RenderData::from_allocations(trace_geom.allocations.iter());
         println!("Memory after building render data: {} MiB", memory_usage());

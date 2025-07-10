@@ -4,6 +4,7 @@ use indicatif::ProgressIterator;
 use log::info;
 use std::fs::File;
 use std::io::Read;
+use std::sync::Arc;
 use zip::ZipArchive;
 
 /// Unzips "allocations.json" and "elements.json" from a zip file into memory.
@@ -17,7 +18,7 @@ use zip::ZipArchive;
 /// "elements.json", or an `io::Error` if an error occurs.
 ///
 /// Executed at start
-pub fn read_snap(zip_file_path: &str) -> anyhow::Result<Vec<Allocation>> {
+pub fn read_snap(zip_file_path: &str) -> anyhow::Result<Arc<[Allocation]>> {
     info!("Loading json strings from zip...");
 
     let mut raw_allocs: Vec<RawAllocationData> = Vec::new();
@@ -96,7 +97,7 @@ pub fn read_snap(zip_file_path: &str) -> anyhow::Result<Vec<Allocation>> {
         ));
     }
 
-    let allocations: Vec<Allocation> = raw_allocs
+    let allocations: Arc<[Allocation]> = raw_allocs
         .into_iter()
         .zip(elements)
         .map(|(raw_alloc, element_data)| {

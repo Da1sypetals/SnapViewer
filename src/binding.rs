@@ -9,6 +9,7 @@ use crate::{
 };
 use log::info;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
+use std::sync::Arc;
 use three_d::{
     ClearState, ColorMaterial, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
     WindowSettings,
@@ -18,7 +19,7 @@ use three_d::{
 pub struct SnapViewer {
     pub db_ptr: u64,
     pub path: String,
-    pub allocs: Vec<Allocation>,
+    pub allocs: Arc<[Allocation]>,
     pub log_level: log::LevelFilter,
     pub resolution: (u32, u32),
 }
@@ -92,7 +93,7 @@ impl SnapViewer {
             "Memory before initializing render loop: {} MiB",
             memory_usage()
         );
-        let render_loop = RenderLoop::try_new(self.allocs.clone(), self.resolution)
+        let render_loop = RenderLoop::try_new(Arc::clone(&self.allocs), self.resolution)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         println!(
             "Memory after initializaing render loop: {} MiB",

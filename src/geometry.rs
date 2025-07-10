@@ -1,8 +1,8 @@
+use crate::allocation::Allocation;
 use indicatif::ProgressIterator;
 use log::info;
 use nalgebra::Vector2;
-
-use crate::allocation::Allocation;
+use std::sync::Arc;
 
 pub struct AllocationGeometry {
     pub timesteps: Vec<f64>,
@@ -25,7 +25,7 @@ impl AllocationGeometry {
 }
 
 pub struct TraceGeometry {
-    pub raw_allocs: Vec<Allocation>,
+    pub raw_allocs: Arc<[Allocation]>,
     pub allocations: Vec<AllocationGeometry>,
     pub max_size: f64,
     pub max_time: f64,
@@ -34,7 +34,7 @@ pub struct TraceGeometry {
 
 impl TraceGeometry {
     /// Executed at start
-    pub fn from_allocations(allocations: Vec<Allocation>, resolution: (u32, u32)) -> Self {
+    pub fn from_allocations(allocations: Arc<[Allocation]>, resolution: (u32, u32)) -> Self {
         info!("Transforming allocations memory snap to geometries...");
         let max_size = allocations
             .iter()
