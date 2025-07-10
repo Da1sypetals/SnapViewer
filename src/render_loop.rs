@@ -1,18 +1,6 @@
-#![allow(warnings)]
-use crate::{
-    allocation::Allocation,
-    geometry::TraceGeometry,
-    render_data,
-    ticks::TickGenerator,
-    ui::{TranslateDir, WindowTransform},
-    utils::{format_bytes_precision, memory_usage},
-};
-use log::info;
-use std::{f32::consts::E, rc::Rc, sync::Arc};
-use three_d::{
-    ClearState, ColorMaterial, Context, CpuMesh, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba,
-    Window, WindowSettings,
-};
+use crate::{allocation::Allocation, geometry::TraceGeometry, render_data, utils::memory_usage};
+use std::sync::Arc;
+use three_d::{ColorMaterial, Context, CpuMesh, Gm, Mesh, Srgba};
 
 pub struct FpsTimer {
     pub timer: std::time::Instant,
