@@ -19,10 +19,9 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
     ```
 3.  **Decompress converted snapshot**: Unzip the snapshot to certain folder, say, `./large`. You should see two files, namely `allocations.json` and `elements.db`.
     ```sh
-    mkdir -p ./large
     unzip snap/large.zip -d ./large
     ```
-
+> Warning: This software is in pre-alpha stage. Everything including snapshot format, data storing/loading logic is under frequent change.
 
 ## Usage:
 - You need Rust toolchain and Python installed.
@@ -40,9 +39,9 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
   maturin dev -r
   ```
 - Specify resolution, log level and directory to your snapshot (which should have `allocations.json` and `elements.db`), and run the application.
-  - Tkinter application (works on windows)
+  - Tkinter application (tested on windows and linux)
     ```sh
-    python tk.py --log info --res 2400 1000 -d <dir_to_your_snapshot>
+    python gui.py --log info --res 2400 1000 -d <dir_to_your_snapshot>
     ```
 
 ## Notes
