@@ -374,7 +374,7 @@ class SnapViewerApp:
     def __init__(self, args):
         self.args = args
         self.root = tk.Tk()
-        self.setup_ui(args.path)
+        self.setup_ui(args.dir)
 
     def setup_ui(self, path: str):
         """Setup the main UI"""
@@ -479,11 +479,11 @@ def main():
         help="Set the logging level (info or trace).",
     )
     parser.add_argument(
-        "-p",
-        "--path",
+        "-d",
+        "--dir",
         type=str,
         required=True,
-        help="Path to the trace file.",
+        help="Directory where the trace file live. Should have allocations.json and elements.db",
     )
     parser.add_argument(
         "--res",
@@ -500,12 +500,12 @@ def main():
     args.resolution = tuple(args.res)
 
     # Verify that the path exists
-    if not os.path.exists(args.path):
-        print(f"Error: The specified path '{args.path}' does not exist.")
+    if not os.path.exists(args.dir):
+        print(f"Error: The specified path '{args.dir}' does not exist.")
         exit(1)  # Exit the program with an error code
 
     global snapviewer
-    snapviewer = SnapViewer(args.path, args.resolution, args.log)
+    snapviewer = SnapViewer(args.dir, args.resolution, args.log)
 
     # Start GUI in a separate thread (non-daemon so it stays alive)
     gui_thread = threading.Thread(target=run_gui, args=(args,), daemon=True)
