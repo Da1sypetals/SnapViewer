@@ -4,7 +4,6 @@ pub mod binding;
 pub mod database;
 pub mod geometry;
 pub mod load;
-pub mod load_sharded;
 pub mod render_data;
 pub mod render_loop;
 pub mod ticks;
