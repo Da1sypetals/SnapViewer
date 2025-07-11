@@ -1,5 +1,6 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use memory_stats::memory_stats;
+use pyo3::{PyErr, exceptions::PyRuntimeError};
 use std::time::Duration;
 
 pub const ALLOCATIONS_FILE_NAME: &str = "allocations.json";
@@ -23,6 +24,16 @@ pub const INTERVALS: [f64; 16] = [
     268435456.0_f64,
     1073741824.0_f64,
 ];
+
+pub trait IntoPyErr {
+    fn into_py_runtime_err(self) -> PyErr;
+}
+
+impl IntoPyErr for anyhow::Error {
+    fn into_py_runtime_err(self) -> PyErr {
+        PyRuntimeError::new_err(self.to_string())
+    }
+}
 
 pub fn memory_usage() -> f64 {
     memory_stats().unwrap().virtual_mem as f64 / (1024.0 * 1024.0)

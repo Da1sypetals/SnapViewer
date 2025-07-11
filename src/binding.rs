@@ -5,7 +5,7 @@ use crate::{
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
-    utils::{format_bytes_precision, get_spinner, memory_usage},
+    utils::{IntoPyErr, format_bytes_precision, get_spinner, memory_usage},
 };
 use log::info;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
@@ -40,13 +40,24 @@ impl SnapViewer {
         };
 
         // let allocs = read_snap(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-        let allocs = read_allocations(&dir).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let allocs = read_allocations(&dir).map_err(|e| e.into_py_runtime_err())?;
 
         // Terrible hack, but I did not find a better way.
         let db = Box::leak(Box::new(
             AllocationDatabase::from_dir(&dir)
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
         ));
+
+        let num_elems = db.row_count().map_err(|e| e.into_py_runtime_err())?;
+
+        // data integrity check
+        if allocs.len() != num_elems {
+            return Err(PyRuntimeError::new_err(format!(
+                "# of allocation and elements mismatch: {} allocations, {} elements",
+                allocs.len(),
+                num_elems,
+            )));
+        }
 
         println!("Memory after init: {} MiB", memory_usage());
 
