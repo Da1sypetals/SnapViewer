@@ -47,3 +47,6 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
 ## Notes
 - Minimal dependency is **not** a goal.
+- todo:
+  - reorganize where each function and struct should be placed
+  - clean code and rename functions
