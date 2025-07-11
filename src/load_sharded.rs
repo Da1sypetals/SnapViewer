@@ -62,6 +62,8 @@ pub fn read_snap_sharded(zip_file_path: &str) -> anyhow::Result<Arc<[Allocation]
     // If `next()` returned `None` (meaning no .meta file with a parseable shard count was found),
     // report and propagate error.
 
+    println!("Found {} shards.", num_shard);
+
     let mut elements_shards: BTreeMap<usize, Vec<ElementData>> = BTreeMap::new();
 
     // Iterate over each file in the zip archive
