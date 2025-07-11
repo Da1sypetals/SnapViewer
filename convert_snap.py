@@ -2,7 +2,7 @@ import pickle
 import sys
 import zipfile
 import logging
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 # Configure logging to output to stdout with timestamps and log level
 logging.basicConfig(
@@ -251,7 +251,8 @@ def cli():
         zf.writestr(ALLOCATIONS_FILE_NAME, allocation_bytes, compress_type=zipfile.ZIP_DEFLATED)
 
         num_shard = (len(elements) + MAX_SHARD_LEN - 1) // MAX_SHARD_LEN
-        for ishard in range(num_shard):
+        zf.writestr(f"{num_shard}.meta", "SnapViewer", compress_type=zipfile.ZIP_DEFLATED)
+        for ishard in trange(num_shard):
             logging.info(f"Dumping elements to byte stream: shard {ishard} / {num_shard}")
 
             start_index = ishard * MAX_SHARD_LEN
