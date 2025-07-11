@@ -27,6 +27,13 @@ except ImportError:
 # Constants for file names used in the zip output
 ALLOCATIONS_FILE_NAME = "allocations.json"
 DATABASE_FILE_NAME = "elements.db"
+DATABASE_SCHEMA = """CREATE TABLE allocs (
+    idx INTEGER PRIMARY KEY,
+    size INTEGER,
+    start_time INTEGER,
+    end_time INTEGER,
+    callstack TEXT
+);"""
 
 
 def trace_to_allocation_data(device_trace):
@@ -242,15 +249,7 @@ def make_db(allocs, elems):
     cursor = conn.cursor()
 
     # Create table schema
-    cursor.execute(
-        """CREATE TABLE allocs (
-    idx INTEGER PRIMARY KEY,
-    size INTEGER,
-    start_time INTEGER,
-    end_time INTEGER,
-    callstack TEXT
-);"""
-    )
+    cursor.execute(DATABASE_SCHEMA)
 
     INSERT_BATCH_SIZE = 10000
     for i in trange(0, len(allocs), INSERT_BATCH_SIZE):

@@ -29,6 +29,13 @@ Special commands:
     --find <pattern>: find the message panel (on the left) with a pattern.
                       case INsensitive, does NOT support regex
 """
+DATABASE_SCHEMA = """CREATE TABLE allocs (
+    idx INTEGER PRIMARY KEY,
+    size INTEGER,
+    start_time INTEGER,
+    end_time INTEGER,
+    callstack TEXT
+);"""
 
 
 def message_callback(message: str):
@@ -341,6 +348,8 @@ class REPLPanel(ttk.Frame):
                             self.output_lines.append(f"[{timestamp}]\nError: Could not access message panel.")
                 elif cmd == "--help":
                     self.output_lines.append(f"[{timestamp}]\n{HELP_MSG}")
+                elif cmd == "--schema":
+                    self.output_lines.append(f"[{timestamp}]\n{DATABASE_SCHEMA}")
                 else:
                     try:
                         output = snapviewer.execute_sql(command)
