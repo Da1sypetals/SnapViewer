@@ -120,11 +120,12 @@ impl SnapViewer {
         let header = rl.trace_geom.raw_allocs[idx].to_string();
 
         // Everybody told me not to use interpolated string, but this is not a security sensitive app.
-        let callstack = db
+        let query_result = db
             .execute(&format!("SELECT callstack FROM allocs WHERE idx = {}", idx))
             .unwrap();
+        let callstack = query_result.splitn(2, "callstack:").skip(1).next().unwrap();
 
-        format!("{}\n|- callstack:\n{}", header, callstack)
+        format!("{}|- callstack:\n{}", header, callstack)
     }
 
     pub fn run_render_loop_impl(&self, mut rl: RenderLoop, cpu_mesh: CpuMesh, callback: PyObject) {
