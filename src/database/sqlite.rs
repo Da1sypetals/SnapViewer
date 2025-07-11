@@ -24,40 +24,6 @@ impl AllocationDatabase {
         })
     }
 
-    // pub fn from_allocations(allocations: &[Allocation]) -> anyhow::Result<Self> {
-    //     log::info!("Creating allocations database");
-    //     println!(
-    //         "Memory before inserting data to database: {} MiB",
-    //         memory_usage()
-    //     );
-
-    //     let mut conn = Connection::open_in_memory()?;
-
-    //     conn.execute(CREATE_SQL, ())?;
-
-    //     log::info!("Inserting rows into allocations table");
-    //     let tx = conn.transaction()?;
-    //     {
-    //         let mut stmt = tx.prepare(INSERT_SQL)?;
-    //         for (index, alloc) in allocations.iter().enumerate().progress() {
-    //             stmt.execute((
-    //                 &index,
-    //                 &alloc.size,
-    //                 &alloc.timesteps[0],
-    //                 alloc.timesteps.last().unwrap(),
-    //                 format_callstack(&alloc.callstack),
-    //             ))?;
-    //         }
-    //     }
-    //     tx.commit()?;
-    //     println!(
-    //         "Memory after inserting data to database: {} MiB",
-    //         memory_usage()
-    //     );
-
-    //     Ok(Self { conn })
-    // }
-
     pub fn execute(&self, command: &str) -> anyhow::Result<String> {
         log::info!("Executing SQL query");
 
