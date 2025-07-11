@@ -1,8 +1,7 @@
 use crate::{
     allocation::Allocation,
-    database::sqlite::{AllocationDatabase, CREATE_SQL},
-    load::read_snap,
-    load_sharded::read_snap_sharded,
+    database::sqlite::AllocationDatabase,
+    load::read_allocations,
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
@@ -19,7 +18,7 @@ use three_d::{
 #[pyclass]
 pub struct SnapViewer {
     pub db_ptr: u64,
-    pub path: String,
+    pub dir: String,
     pub allocs: Arc<[Allocation]>,
     pub log_level: log::LevelFilter,
     pub resolution: (u32, u32),
@@ -28,7 +27,7 @@ pub struct SnapViewer {
 #[pymethods]
 impl SnapViewer {
     #[new]
-    pub fn new(path: String, resolution: (u32, u32), log_level: String) -> PyResult<Self> {
+    pub fn new(dir: String, resolution: (u32, u32), log_level: String) -> PyResult<Self> {
         let log_level = match log_level.as_str() {
             "trace" => log::LevelFilter::Trace,
             "info" => log::LevelFilter::Info,
@@ -41,12 +40,11 @@ impl SnapViewer {
         };
 
         // let allocs = read_snap(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-        let allocs =
-            read_snap_sharded(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let allocs = read_allocations(&dir).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
 
         // Terrible hack, but I did not find a better way.
         let db = Box::leak(Box::new(
-            AllocationDatabase::from_allocations(&allocs)
+            AllocationDatabase::from_dir(&dir)
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
         ));
 
@@ -57,7 +55,7 @@ impl SnapViewer {
             allocs,
             resolution,
             log_level,
-            path,
+            dir,
         })
     }
 
@@ -75,7 +73,6 @@ impl SnapViewer {
             if command.starts_with("--") {
                 // is a special command
                 match command {
-                    "--schema" => Ok(format!("\nTable schema:\n\n{}\n", CREATE_SQL)),
                     _ => Ok(format!("Unexpected special command: {}", command)),
                 }
             } else {
@@ -117,6 +114,19 @@ impl SnapViewer {
 }
 
 impl SnapViewer {
+    pub fn allocation_info(rl: &RenderLoop, db_ptr: u64, idx: usize) -> String {
+        // Terrible hack, but I did not find a better way.
+        let db = unsafe { &mut *(db_ptr as *mut AllocationDatabase) };
+        let header = rl.trace_geom.raw_allocs[idx].to_string();
+
+        // Everybody told me not to use interpolated string, but this is not a security sensitive app.
+        let callstack = db
+            .execute(&format!("SELECT callstack FROM allocs WHERE idx = {}", idx))
+            .unwrap();
+
+        format!("{}\n|- callstack:\n{}", header, callstack)
+    }
+
     pub fn run_render_loop_impl(&self, mut rl: RenderLoop, cpu_mesh: CpuMesh, callback: PyObject) {
         let bar = get_spinner(&format!("Initializing window and UI...")).unwrap();
         println!(
@@ -158,6 +168,7 @@ impl SnapViewer {
         bar.finish();
 
         println!("Memory at start of render loop: {} MiB", memory_usage());
+        let db_ptr = self.db_ptr;
         window.render_loop(move |frame_input| {
             // render loop start
 
@@ -185,7 +196,10 @@ impl SnapViewer {
                                     let msg = format!(
                                         "Allocation #{}\n{}",
                                         idx,
-                                        rl.trace_geom.allocation_info(idx)
+                                        // WTF? I believe this must be a bug of rustc. This line does not work.
+                                        // This is a Copy type which should not involve any lifetime stuff.
+                                        // Self::allocation_info(&rl, self.db_ptr, idx)
+                                        Self::allocation_info(&rl, db_ptr, idx)
                                     );
 
                                     Python::with_gil(|py| {
