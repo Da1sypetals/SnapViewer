@@ -2,6 +2,7 @@ use crate::{
     allocation::Allocation,
     database::sqlite::{AllocationDatabase, CREATE_SQL},
     load::read_snap,
+    load_sharded::read_snap_sharded,
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,
     ui::{TranslateDir, WindowTransform},
@@ -39,7 +40,10 @@ impl SnapViewer {
             }
         };
 
-        let allocs = read_snap(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        // let allocs = read_snap(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let allocs =
+            read_snap_sharded(&path).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+
         // Terrible hack, but I did not find a better way.
         let db = Box::leak(Box::new(
             AllocationDatabase::from_allocations(&allocs)
