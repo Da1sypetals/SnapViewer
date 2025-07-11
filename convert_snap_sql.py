@@ -1,8 +1,9 @@
+import logging
 import pickle
 import sqlite3
 import sys
 import zipfile
-import logging
+
 from tqdm import tqdm, trange
 
 # Configure logging to output to stdout with timestamps and log level
@@ -26,11 +27,6 @@ except ImportError:
 # Constants for file names used in the zip output
 ALLOCATIONS_FILE_NAME = "allocations.json"
 DATABASE_FILE_NAME = "elements.db"
-MAX_SHARD_LEN = 50_000
-
-
-def element_file_name(shard_idx: int):
-    return f"elements_{shard_idx}.json"
 
 
 def trace_to_allocation_data(device_trace):
