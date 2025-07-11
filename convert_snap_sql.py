@@ -25,6 +25,7 @@ except ImportError:
 
 # Constants for file names used in the zip output
 ALLOCATIONS_FILE_NAME = "allocations.json"
+DATABASE_FILE_NAME = "elements.db"
 MAX_SHARD_LEN = 50_000
 
 
@@ -228,11 +229,23 @@ def get_trace(dump: dict, device_id: int):
 
 
 def make_db(allocs, elems):
-    # connect to a on-disk sqlite3 db called tmp.db
-    conn = sqlite3.connect("tmp.db")
+    """
+    Create an in-memory SQLite database and return its binary data.
+
+    Args:
+        allocs (list): List of allocation data
+        elems (list): List of element data
+
+    Returns:
+        bytes: Binary data of the SQLite database
+    """
+    logging.info("Creating in-memory SQLite database")
+
+    # Create in-memory database
+    conn = sqlite3.connect(":memory:")
     cursor = conn.cursor()
 
-    # create table schema
+    # Create table schema
     cursor.execute(
         """CREATE TABLE allocs (
     idx INTEGER PRIMARY KEY,
@@ -270,6 +283,12 @@ def make_db(allocs, elems):
         )
         conn.commit()
 
+    logging.info("Serializing database to bytes")
+
+    db_bytes = conn.serialize()
+    conn.close()
+    return db_bytes
+
 
 def cli():
     """
@@ -290,7 +309,9 @@ def cli():
     # Extract and process trace
     trace = get_trace(dump, args.device)
     allocations, elements = trace_to_allocation_data(trace)
-    make_db(allocations, elements)
+
+    # Create in-memory database and get its binary data
+    db_bytes = make_db(allocations, elements)
 
     # Save trace to a zip file
     logging.info("Saving trace dictionary as zip")
@@ -301,18 +322,8 @@ def cli():
         logging.info("Saving allocations")
         zf.writestr(ALLOCATIONS_FILE_NAME, allocation_bytes, compress_type=zipfile.ZIP_DEFLATED)
 
-    #     num_shard = (len(elements) + MAX_SHARD_LEN - 1) // MAX_SHARD_LEN
-    #     zf.writestr(f"{num_shard}.meta", "SnapViewer", compress_type=zipfile.ZIP_DEFLATED)
-    #     for ishard in trange(num_shard):
-    #         logging.info(f"Dumping elements to byte stream: shard {ishard} / {num_shard}")
-
-    #         start_index = ishard * MAX_SHARD_LEN
-    #         end_index = min((ishard + 1) * MAX_SHARD_LEN, len(elements))
-
-    #         elements_bytes = json.dumps(elements[start_index:end_index])
-
-    #         logging.info(f"Saving element: shard {ishard} / {num_shard}")
-    #         zf.writestr(element_file_name(ishard), elements_bytes, compress_type=zipfile.ZIP_DEFLATED)
+        logging.info("Saving database")
+        zf.writestr(DATABASE_FILE_NAME, db_bytes, compress_type=zipfile.ZIP_DEFLATED)
 
     print("Trace lengths:")
     print(f"    {len(allocations) = }")
