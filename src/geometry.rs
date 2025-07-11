@@ -127,10 +127,6 @@ impl TraceGeometry {
         None
     }
 
-    pub fn allocation_info(&self, idx: usize) -> String {
-        self.raw_allocs[idx].to_string()
-    }
-
     /// y_world: y position (world coords)
     /// Allow negative memory
     pub fn yworld2memory(&self, y_world: f32) -> i64 {

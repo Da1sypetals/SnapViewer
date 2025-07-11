@@ -18,12 +18,11 @@ impl Display for Frame {
 }
 
 // Corresponds to the Python Allocation dataclass
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Allocation {
     pub timesteps: Vec<u64>, // x coords, sorted
     pub offsets: Vec<u64>,   // y coords, length same as `timesteps`
     pub size: u64,           // height (sweep distance)
-    pub callstack: Vec<Frame>,
     pub peak_mem: u64,
     pub peak_timestamps: Vec<u64>, // reaches its peak at these timestamps
 }
@@ -47,16 +46,6 @@ impl Display for Allocation {
         writeln!(f, "|- Offsets: omitted")?;
         // Or print offsets if desired:
         // writeln!(f, "└── Offsets: {:?}", self.offsets)?;
-
-        writeln!(f, "|- Callstack:")?;
-        if self.callstack.is_empty() {
-            writeln!(f, "    |- (empty callstack)")?;
-        } else {
-            for (i, frame) in self.callstack.iter().enumerate() {
-                let prefix = "    |-";
-                writeln!(f, "{} ({}){}", prefix, i, frame)?;
-            }
-        }
 
         Ok(())
     }
