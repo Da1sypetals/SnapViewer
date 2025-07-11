@@ -19,7 +19,9 @@ pub fn element_file_name(filename: &str) -> Option<usize> {
         .and_then(|s| s.strip_suffix(".json"))
         .and_then(|shard_str| shard_str.parse::<usize>().ok())
 }
-/// Unzips "allocations.json" and "elements.json" from a zip file into memory.
+
+/// Unzips "allocations.json" and sharded "elements_{i}.json" from a zip file into memory.
+/// First reads "{}.meta" for # of (element) shards, then deserializes allocations and elements.
 ///
 /// ## Arguments
 /// * `zip_file_path` - The path to the zip file.
