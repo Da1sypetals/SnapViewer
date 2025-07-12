@@ -1,5 +1,4 @@
 def format_size(num):
-    orig = num
     units = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]
     for unit in units:
         if abs(num) < 1024.0:
