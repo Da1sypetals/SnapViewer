@@ -187,12 +187,12 @@ class HistoryEntry(ttk.Entry):
 class REPLPanel(ttk.Frame):
     """REPL panel with input and scrollable output"""
 
-    REPL_HINT = [
+    REPL_HINT = (
         "SQLite REPL - This is a SQLite database storing the allocation data.",
         "Type `--help` to see available commands.",
         "Type `--find <pattern>` to search messages.",
         "Ctrl+D to quit application.",
-    ]
+    )
 
     def __init__(self, parent, args):
         super().__init__(parent)
