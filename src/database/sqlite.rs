@@ -92,16 +92,6 @@ impl AllocationDatabase {
             Ok(row_values)
         })?;
 
-        // log::info!("Merging results");
-        // output_string.push_str("\n===== SQL Query Results =====\n");
-        // for (idx, row_result) in rows_iter.enumerate() {
-        //     let row_values = row_result?;
-        //     output_string.push_str(&format!("\n===== Row {} =====\n", idx));
-        //     for (col_name, row_value) in column_names.iter().zip(row_values) {
-        //         output_string.push_str(&format!("column [{}] : {}\n", col_name, row_value));
-        //     }
-        // }
-
         output_string.push_str("\n========== SQL Query Results ==========\n");
 
         for (idx, row_result) in rows_iter.enumerate() {
