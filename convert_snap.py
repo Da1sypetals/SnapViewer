@@ -80,7 +80,7 @@ def process_alloc_data(device_trace):
     free_actions = {"free", "free_completed"}
 
     logging.info("Processing events")
-    for idx, event in enumerate(device_trace):
+    for idx, event in tqdm(enumerate(device_trace)):
         if event["action"] == "alloc":
             # If current action is allocation, Register allocation event
             elements.append(event)
