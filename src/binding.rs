@@ -59,6 +59,7 @@ impl SnapViewer {
             )));
         }
 
+        println!("Found {} entries", allocs.len());
         println!("Memory after init: {} MiB", memory_usage());
 
         Ok(Self {

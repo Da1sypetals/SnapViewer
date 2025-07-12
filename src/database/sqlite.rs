@@ -24,40 +24,8 @@ impl AllocationDatabase {
 
     pub fn row_count(&self) -> anyhow::Result<usize> {
         let mut stmt = self.conn.prepare("SELECT COUNT(*) FROM allocs")?;
-        let num_cols = stmt.column_count();
-
-        let mut rows_iter = stmt.query_map([], |row| {
-            let mut row_values = Vec::new();
-            for i in 0..num_cols {
-                let value_str = row
-                    .get_ref(i)?
-                    .as_str()
-                    .map(|s| s.to_string()) // if is text
-                    .unwrap_or_else(|_| {
-                        // If not text, try to represent it as a string
-                        match row.get_ref(i) {
-                            Ok(rusqlite::types::ValueRef::Integer(i)) => i.to_string(),
-                            Ok(rusqlite::types::ValueRef::Real(f)) => f.to_string(),
-                            Ok(rusqlite::types::ValueRef::Blob(b)) => {
-                                format!("<BLOB len={}>", b.len())
-                            }
-                            Ok(rusqlite::types::ValueRef::Null) => String::from("NULL"),
-                            _ => String::from("[UNSUPPORTED TYPE]"),
-                        }
-                    });
-                row_values.push(value_str);
-            }
-
-            Ok(row_values)
-        })?;
-
-        Ok(rows_iter
-            .next()
-            .unwrap()
-            .unwrap()
-            .first()
-            .unwrap()
-            .parse::<usize>()?)
+        let count = stmt.query_one([], |row| Ok(row.get_ref(0)?.as_i64()))??;
+        Ok(count as usize)
     }
 
     pub fn execute(&self, command: &str) -> anyhow::Result<String> {
