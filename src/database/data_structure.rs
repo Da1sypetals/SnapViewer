@@ -1,18 +1,17 @@
-use crate::allocation::Frame;
+use serde::Deserialize;
+use std::fmt::Display;
 
-#[derive(Debug)]
-pub struct AllocationDbRow {
-    pub index: usize,
-    pub size: u64,
-    pub callstack: String,
-    pub start_time: u64,
-    pub end_time: u64,
+// Corresponds to the Python Frame dataclass
+#[derive(Deserialize, Debug)]
+pub struct Frame {
+    pub name: String, // function name
+    pub filename: String,
+    pub line: u32,
 }
 
-pub fn format_callstack(frames: &[Frame]) -> String {
-    frames
-        .iter()
-        .map(|frame| format!("{}:{}:{}", frame.filename, frame.line, frame.name))
-        .collect::<Vec<String>>()
-        .join("\n")
+// Implement Display for Frame to make callstack printing cleaner
+impl Display for Frame {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "  at {} ({}:{})", self.name, self.filename, self.line)
+    }
 }

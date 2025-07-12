@@ -2,21 +2,6 @@ use crate::utils::format_bytes;
 use serde::Deserialize;
 use std::fmt::{Display, Formatter, Result};
 
-// Corresponds to the Python Frame dataclass
-#[derive(Deserialize, Debug)]
-pub struct Frame {
-    pub name: String, // function name
-    pub filename: String,
-    pub line: u32,
-}
-
-// Implement Display for Frame to make callstack printing cleaner
-impl Display for Frame {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "  at {} ({}:{})", self.name, self.filename, self.line)
-    }
-}
-
 // Corresponds to the Python Allocation dataclass
 #[derive(Deserialize, Debug, Clone)]
 pub struct Allocation {
@@ -71,11 +56,4 @@ pub struct RawAllocationData {
     pub timesteps: Vec<u64>,
     pub offsets: Vec<u64>,
     pub size: u64,
-}
-
-// Intermediate struct to help parse the structure of elements.json
-// Each element in elements.json contains a list of frames.
-#[derive(Deserialize)]
-pub struct ElementData {
-    pub frames: Vec<Frame>,
 }

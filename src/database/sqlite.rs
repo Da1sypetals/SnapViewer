@@ -1,8 +1,6 @@
-use crate::utils::memory_usage;
+use crate::{constants::ELEMENT_DB_FILENAME, utils::memory_usage};
 use rusqlite::Connection;
 use std::path::PathBuf;
-
-pub const ELEMENT_DB_FILENAME: &str = "elements.db";
 
 #[derive(Debug)]
 pub struct AllocationDatabase {

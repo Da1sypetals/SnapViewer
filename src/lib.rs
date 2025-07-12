@@ -1,6 +1,7 @@
 #![forbid(dead_code)]
 pub mod allocation;
 pub mod binding;
+pub mod constants;
 pub mod database;
 pub mod geometry;
 pub mod load;

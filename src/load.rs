@@ -1,5 +1,6 @@
 use crate::allocation::{Allocation, RawAllocationData};
-use crate::utils::{ALLOCATIONS_FILE_NAME, get_spinner, memory_usage};
+use crate::constants::ALLOCATIONS_FILE_NAME;
+use crate::utils::{get_spinner, memory_usage};
 use indicatif::ProgressIterator;
 use log::info;
 use std::fs::File;
