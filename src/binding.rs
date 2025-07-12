@@ -125,20 +125,6 @@ impl SnapViewer {
 }
 
 impl SnapViewer {
-    pub fn allocation_info(rl: &RenderLoop, db_ptr: u64, idx: usize) -> String {
-        // Terrible hack, but I did not find a better way.
-        let db = unsafe { &mut *(db_ptr as *mut AllocationDatabase) };
-        let header = rl.trace_geom.raw_allocs[idx].to_string();
-
-        // Everybody told me not to use interpolated string, but this is not a security sensitive app.
-        let query_result = db
-            .execute(&format!("SELECT callstack FROM allocs WHERE idx = {}", idx))
-            .unwrap();
-        let callstack = query_result.splitn(2, "callstack:").skip(1).next().unwrap();
-
-        format!("{}|- callstack:\n{}", header, callstack)
-    }
-
     pub fn run_render_loop_impl(&self, mut rl: RenderLoop, cpu_mesh: CpuMesh, callback: PyObject) {
         let bar = get_spinner(&format!("Initializing window and UI...")).unwrap();
         println!(
@@ -211,7 +197,7 @@ impl SnapViewer {
                                         // WTF? I believe this must be a bug of rustc. This line does not work.
                                         // This is a Copy type which should not involve any lifetime stuff.
                                         // Self::allocation_info(&rl, self.db_ptr, idx)
-                                        Self::allocation_info(&rl, db_ptr, idx)
+                                        rl.allocation_info(db_ptr, idx)
                                     );
 
                                     Python::with_gil(|py| {

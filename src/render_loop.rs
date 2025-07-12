@@ -1,4 +1,7 @@
-use crate::{allocation::Allocation, geometry::TraceGeometry, render_data, utils::memory_usage};
+use crate::{
+    allocation::Allocation, database::sqlite::AllocationDatabase, geometry::TraceGeometry,
+    render_data, utils::memory_usage,
+};
 use std::sync::Arc;
 use three_d::{ColorMaterial, Context, CpuMesh, Gm, Mesh, Srgba};
 
@@ -125,5 +128,19 @@ impl RenderLoop {
         // The original color of the allocation
         let original_color = self.alloc_colors[idx];
         self.decaying_color.reset(original_color);
+    }
+
+    pub fn allocation_info(&self, db_ptr: u64, idx: usize) -> String {
+        // Terrible hack, but I did not find a better way.
+        let db = unsafe { &mut *(db_ptr as *mut AllocationDatabase) };
+        let header = self.trace_geom.raw_allocs[idx].to_string();
+
+        // Everybody told me not to use interpolated string, but this is not a security sensitive app.
+        let query_result = db
+            .execute(&format!("SELECT callstack FROM allocs WHERE idx = {}", idx))
+            .unwrap();
+        let callstack = query_result.splitn(2, "callstack:").skip(1).next().unwrap();
+
+        format!("{}|- callstack:\n{}", header, callstack)
     }
 }
