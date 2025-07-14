@@ -1,4 +1,7 @@
-use crate::{constants::ELEMENT_DB_FILENAME, utils::memory_usage};
+use crate::{
+    constants::ELEMENT_DB_FILENAME,
+    utils::{get_spinner, memory_usage},
+};
 use rusqlite::Connection;
 use std::path::PathBuf;
 
@@ -11,7 +14,7 @@ impl AllocationDatabase {
     pub fn from_dir(dir: &str) -> anyhow::Result<Self> {
         log::info!("Creating allocations database");
         println!(
-            "Memory before inserting data to database: {} MiB",
+            "Memory before connecting to database: {} MiB",
             memory_usage()
         );
 
@@ -23,8 +26,10 @@ impl AllocationDatabase {
     }
 
     pub fn row_count(&self) -> anyhow::Result<usize> {
+        let bar = get_spinner("Querying # of rows...")?;
         let mut stmt = self.conn.prepare("SELECT COUNT(*) FROM allocs")?;
         let count = stmt.query_one([], |row| Ok(row.get_ref(0)?.as_i64()))??;
+        bar.finish();
         Ok(count as usize)
     }
 

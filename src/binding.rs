@@ -164,6 +164,7 @@ impl SnapViewer {
 
         // start a timer
         let mut timer = FpsTimer::new();
+
         bar.finish();
 
         println!("Memory at start of render loop: {} MiB", memory_usage());
