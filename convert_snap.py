@@ -3,6 +3,7 @@ import pickle
 import sqlite3
 import sys
 import zipfile
+import tempfile  # Import tempfile
 
 from tqdm import tqdm, trange
 
@@ -233,19 +234,23 @@ def get_trace(dump: dict, device_id: int):
 
 def make_db(allocs, elems):
     """
-    Create an in-memory SQLite database and return its binary data.
+    Create an SQLite database in a temporary file and return the path to it.
 
     Args:
         allocs (list): List of allocation data
         elems (list): List of element data
 
     Returns:
-        bytes: Binary data of the SQLite database
+        str: Path to the temporary SQLite database file.
     """
-    logging.info("Creating in-memory SQLite database")
+    logging.info("Creating temporary SQLite database file")
 
-    # Create in-memory database
-    conn = sqlite3.connect(":memory:")
+    # Create a temporary file
+    temp_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+    temp_db_path = temp_db_file.name
+    temp_db_file.close()  # Close the file handle as sqlite3.connect will open it
+
+    conn = sqlite3.connect(temp_db_path)
     cursor = conn.cursor()
 
     # Create table schema
@@ -278,11 +283,9 @@ def make_db(allocs, elems):
         )
         conn.commit()
 
-    logging.info("Serializing database to bytes")
-
-    db_bytes = conn.serialize()
     conn.close()
-    return db_bytes
+    logging.info(f"Database written to temporary file: {temp_db_path}")
+    return temp_db_path
 
 
 def cli():
@@ -290,6 +293,7 @@ def cli():
     Command-line interface to process a snapshot and export memory trace to a zip.
     """
     import argparse
+    import os  # Import os for deleting the temporary file
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", required=True, type=str, help="Path to snapshot pickle")
@@ -305,20 +309,28 @@ def cli():
     trace = get_trace(dump, args.device)
     allocations, elements = trace_to_allocation_data(trace)
 
-    # Create in-memory database and get its binary data
-    db_bytes = make_db(allocations, elements)
+    # Create temporary database file
+    db_file_path = None
+    try:
+        db_file_path = make_db(allocations, elements)
 
-    # Save trace to a zip file
-    logging.info("Saving trace dictionary as zip")
-    with zipfile.ZipFile(args.output, "w") as zf:
-        logging.info("Dumping allocations to byte stream")
-        allocation_bytes = json.dumps(allocations)
+        # Save trace to a zip file
+        logging.info("Saving trace dictionary as zip")
+        with zipfile.ZipFile(args.output, "w") as zf:
+            logging.info("Dumping allocations to byte stream")
+            allocation_bytes = json.dumps(allocations)
 
-        logging.info("Saving allocations")
-        zf.writestr(ALLOCATIONS_FILE_NAME, allocation_bytes, compress_type=zipfile.ZIP_DEFLATED)
+            logging.info("Saving allocations")
+            zf.writestr(ALLOCATIONS_FILE_NAME, allocation_bytes, compress_type=zipfile.ZIP_DEFLATED)
 
-        logging.info("Saving database")
-        zf.writestr(DATABASE_FILE_NAME, db_bytes, compress_type=zipfile.ZIP_DEFLATED)
+            logging.info(f"Saving database from temporary file: {db_file_path}")
+            zf.write(db_file_path, arcname=DATABASE_FILE_NAME, compress_type=zipfile.ZIP_DEFLATED)
+
+    finally:
+        # Clean up the temporary database file
+        if db_file_path and os.path.exists(db_file_path):
+            logging.info(f"Deleting temporary database file: {db_file_path}")
+            os.remove(db_file_path)
 
     print("Trace lengths:")
     print(f"    {len(allocations) = }")
