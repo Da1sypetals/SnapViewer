@@ -10,6 +10,7 @@ Features:
 
 import argparse
 import os
+import platform
 import threading
 import tkinter as tk
 from datetime import datetime
@@ -64,11 +65,15 @@ class MessagePanel(ttk.Frame):
         try:
             if os.path.exists(font_path):
                 # Register the font with tkinter using the low-level tk interface
-                self.winfo_toplevel().tk.call(
-                    "font", "create", "JetBrainsMonoCustom", "-family", "JetBrains Mono", "-size", "14"
-                )
+                # Check if font already exists to avoid duplicate registration
+                try:
+                    self.winfo_toplevel().tk.call(
+                        "font", "create", "JetBrainsMonoCustom", "-family", "JetBrains Mono", "-size", "14"
+                    )
+                except tk.TclError:
+                    # Font already exists, that's OK
+                    pass
                 # Try to load the actual font file using platform-specific methods
-                import platform
 
                 if platform.system() == "Windows":
                     try:
@@ -210,11 +215,15 @@ class REPLPanel(ttk.Frame):
         try:
             if os.path.exists(font_path):
                 # Register the font with tkinter using the low-level tk interface
-                self.winfo_toplevel().tk.call(
-                    "font", "create", "JetBrainsMonoCustom", "-family", "JetBrains Mono", "-size", "14"
-                )
+                # Check if font already exists to avoid duplicate registration
+                try:
+                    self.winfo_toplevel().tk.call(
+                        "font", "create", "JetBrainsMonoCustom", "-family", "JetBrains Mono", "-size", "14"
+                    )
+                except tk.TclError:
+                    # Font already exists, that's OK
+                    pass
                 # Try to load the actual font file using platform-specific methods
-                import platform
 
                 if platform.system() == "Windows":
                     try:
@@ -470,6 +479,33 @@ def run_gui(args):
     terminate()
 
 
+def run_viewer():
+    """Run the viewer (called from appropriate thread based on platform)"""
+    global snapviewer
+    try:
+        # this calls into Rust extension.
+        # block current thread, but does NOT hold GIL.
+        # On Windows/Linux: MUST run on main thread.
+        # On macOS: runs in background thread due to tkinter requirement.
+        snapviewer.viewer(message_callback)
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+        terminate()
+    except Exception as e:
+        print(f"Error in viewer: {e}")
+        # On macOS, if we get a winit main-thread error, provide helpful message
+        if "main thread" in str(e).lower() and platform.system() == "Darwin":
+            print("\n" + "="*70)
+            print("macOS Threading Limitation Detected")
+            print("="*70)
+            print("Unfortunately, on macOS, both the GUI and the 3D viewer require")
+            print("the main thread. This is a limitation of macOS windowing systems.")
+            print("\nThe REPL interface is still available for SQL queries.")
+            print("="*70)
+        else:
+            terminate()
+
+
 def main():
     """Run the application"""
     parser = argparse.ArgumentParser(description="Python GUI with Message Display Area and Echo REPL")
@@ -516,22 +552,29 @@ def main():
     global snapviewer
     snapviewer = SnapViewer(args.dir, args.resolution, args.log)
 
-    # Start GUI in a separate thread (non-daemon so it stays alive)
-    gui_thread = threading.Thread(target=run_gui, args=(args,), daemon=True)
-    gui_thread.start()
+    # Platform-specific threading model
+    is_macos = platform.system() == "Darwin"
 
-    # Run viewer in main thread (blocking infinite loop)
-    try:
-        # this calls into Rust extension.
-        # block current thread, but does NOT hold GIL.
-        # MUST run on main thread.
-        snapviewer.viewer(message_callback)
-    except KeyboardInterrupt:
-        print("\nShutting down...")
-        # The GUI close event will handle termination
-    except Exception as e:
-        print(f"Error in viewer: {e}")
-        terminate()
+    if is_macos:
+        print("macOS detected - running GUI on main thread, viewer in background thread")
+        print("Note: The 3D viewer window may not appear due to macOS threading restrictions")
+        print("The REPL interface will still be available for SQL queries.\n")
+
+        # On macOS: tkinter MUST run on main thread
+        # Start viewer in background thread
+        viewer_thread = threading.Thread(target=run_viewer, daemon=True)
+        viewer_thread.start()
+
+        # Run GUI on main thread (blocking)
+        run_gui(args)
+    else:
+        # On Windows/Linux: Run viewer on main thread, GUI in background
+        # Start GUI in a separate thread
+        gui_thread = threading.Thread(target=run_gui, args=(args,), daemon=True)
+        gui_thread.start()
+
+        # Run viewer in main thread (blocking infinite loop)
+        run_viewer()
 
 
 if __name__ == "__main__":

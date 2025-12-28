@@ -132,13 +132,36 @@ impl SnapViewer {
             "Memory before render loop init work: {} MiB",
             memory_usage()
         );
-        let window = Window::new(WindowSettings {
+
+        // Platform-specific window creation
+        #[cfg(target_os = "macos")]
+        {
+            println!("macOS detected - attempting to create viewer window...");
+            println!("Note: On macOS, window creation requires specific thread configuration.");
+        }
+
+        let window = match Window::new(WindowSettings {
             title: "SnapViewer".to_string(),
             min_size: rl.resolution,
             max_size: Some(rl.resolution),
             ..Default::default()
-        })
-        .unwrap();
+        }) {
+            Ok(w) => w,
+            Err(e) => {
+                eprintln!("\n{}", "=".repeat(70));
+                eprintln!("Failed to create viewer window: {}", e);
+                #[cfg(target_os = "macos")]
+                {
+                    eprintln!("\nmacOS detected. This error often occurs because:");
+                    eprintln!("1. The windowing system requires main thread access");
+                    eprintln!("2. tkinter is also using the main thread");
+                    eprintln!("\nThe REPL interface is still available for SQL queries.");
+                    eprintln!("You can close this warning and use the REPL panel.");
+                }
+                eprintln!("{}", "=".repeat(70));
+                panic!("{}", e);
+            }
+        };
         let context = window.gl();
 
         info!("Moving mesh to GPU...");
