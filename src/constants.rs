@@ -1,7 +1,7 @@
 pub const ALLOCATIONS_FILE_NAME: &str = "allocations.json";
 pub const ELEMENT_DB_FILENAME: &str = "elements.db";
 pub const UNITS: [&str; 8] = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"];
-pub const INTERVALS: [f64; 16] = [
+pub const INTERVALS: [f64; 20] = [
     1.0_f64,
     4.0_f64,
     16.0_f64,
@@ -18,4 +18,8 @@ pub const INTERVALS: [f64; 16] = [
     67108864.0_f64,
     268435456.0_f64,
     1073741824.0_f64,
+    4294967296.0_f64,
+    17179869184.0_f64,
+    68719476736.0_f64,
+    274877906944.0_f64,
 ];
