@@ -2,24 +2,27 @@
 """
 SnapViewer GUI using TKinter
 Features:
-- Left panel: Displays messages from main thread
-- Right panel: Echo REPL
-- Main thread runs viewer() function
-- Thread communication via TKinter thread-safe methods
+- Left panel: Displays messages from renderer process
+- Right panel: SQLite REPL
+- Renderer process runs OpenGL window
+- UI process runs Tkinter GUI
+- Communication via ZeroMQ IPC
 """
 
 import argparse
 import os
+import subprocess
+import sys
 import threading
 import tkinter as tk
 from datetime import datetime
 from tkinter import font, messagebox, scrolledtext, ttk
-
-from snapviewer import SnapViewer
+import zmq
 
 # Global reference to the app instance for callback access
 app_instance = None
-snapviewer = None
+sql_client = None
+renderer_process = None
 
 HELP_MSG = """Execute any SqLite commands.
 Special commands:
@@ -38,12 +41,72 @@ DATABASE_SCHEMA = """CREATE TABLE allocs (
 );"""
 
 
-def message_callback(message: str):
-    """Callback that updates GUI via thread-safe method"""
-    global app_instance
-    if app_instance:
-        # Use after() for thread-safe UI updates
-        app_instance.root.after(0, app_instance.update_message, message)
+class ZeroMQReceiver(threading.Thread):
+    """Background thread that receives messages from renderer via ZeroMQ SUB socket"""
+
+    def __init__(self, host, port, app):
+        super().__init__(daemon=True)
+        self.host = host
+        self.port = port
+        self.app = app
+        self.context = zmq.Context()
+        self.socket = None
+        self.running = True
+        self.poller = None
+
+    def run(self):
+        """Receive messages and update GUI thread-safely"""
+        self.socket = self.context.socket(zmq.SUB)
+        self.socket.connect(f"tcp://{self.host}:{self.port}")
+        self.socket.setsockopt_string(zmq.SUBSCRIBE, "")
+        self.poller = zmq.Poller()
+        self.poller.register(self.socket, zmq.POLLIN)
+
+        while self.running:
+            # Use poll with timeout for clean shutdown
+            socks = dict(self.poller.poll(timeout=100))
+            if self.socket in socks and socks[self.socket] == zmq.POLLIN:
+                try:
+                    message = self.socket.recv_string(zmq.NOBLOCK)
+                    # Use after() for thread-safe UI updates
+                    self.app.root.after(0, self.app.update_message, message)
+                except zmq.ZMQError:
+                    pass
+
+    def stop(self):
+        """Stop the receiver thread"""
+        self.running = False
+        if self.socket:
+            self.socket.close()
+        self.context.term()
+
+
+class ZeroMQSQLClient:
+    """Client for sending SQL commands to renderer via ZeroMQ REQ socket"""
+
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.context = zmq.Context()
+        self.socket = None
+
+    def connect(self):
+        """Connect to the renderer's REP socket"""
+        self.socket = self.context.socket(zmq.REQ)
+        self.socket.connect(f"tcp://{self.host}:{self.port}")
+
+    def execute_sql(self, command: str) -> str:
+        """Send SQL command and receive response"""
+        if not self.socket:
+            return "Error: Not connected to renderer"
+        self.socket.send_string(command)
+        return self.socket.recv_string()
+
+    def close(self):
+        """Close the connection"""
+        if self.socket:
+            self.socket.close()
+        self.context.term()
 
 
 class MessagePanel(ttk.Frame):
@@ -352,7 +415,7 @@ class REPLPanel(ttk.Frame):
                     self.output_lines.append(f"[{timestamp}]\n{DATABASE_SCHEMA}")
                 else:
                     try:
-                        output = snapviewer.execute_sql(command)
+                        output = self.app.sql_client.execute_sql(command)
                         self.output_lines.append(f"[{timestamp}]\n{output}")
                     except Exception as e:
                         self.output_lines.append(f"[{timestamp}]\nError: {e}")
@@ -378,12 +441,20 @@ class REPLPanel(ttk.Frame):
 
 
 class SnapViewerApp:
-    """Main GUI application with thread communication"""
+    """Main GUI application with ZeroMQ communication"""
 
-    def __init__(self, args):
+    def __init__(self, args, sql_client):
         self.args = args
+        self.sql_client = sql_client
         self.root = tk.Tk()
+        self.receiver = None
         self.setup_ui(args.dir)
+        self.start_receiver(args.pub_port)
+
+    def start_receiver(self, pub_port):
+        """Start the ZeroMQ receiver thread"""
+        self.receiver = ZeroMQReceiver("127.0.0.1", pub_port, self)
+        self.receiver.start()
 
     def setup_ui(self, path: str):
         """Setup the main UI"""
@@ -444,6 +515,9 @@ class SnapViewerApp:
         )
 
         if result:
+            # Stop the receiver thread
+            if self.receiver:
+                self.receiver.stop()
             self.root.quit()
             self.root.destroy()
             # Terminate the application
@@ -456,14 +530,74 @@ class SnapViewerApp:
 
 def terminate():
     """Terminate the application"""
+    global renderer_process, sql_client
+
+    # Close SQL client
+    if sql_client:
+        sql_client.close()
+
+    # Terminate renderer process
+    if renderer_process:
+        renderer_process.terminate()
+        renderer_process.wait()
+
     os._exit(0)
 
 
-def run_gui(args):
-    """Run the GUI application in a separate thread"""
-    global app_instance
+def spawn_renderer(args):
+    """Spawn the renderer process"""
+    global renderer_process
 
-    app_instance = SnapViewerApp(args)
+    # Find the renderer binary
+    # First try the target/release directory
+    import sys
+    from pathlib import Path
+
+    # Get the directory where this script is located
+    script_dir = Path(__file__).parent
+    renderer_paths = [
+        script_dir / "target" / "release" / "snapviewer-renderer",
+        script_dir / "target" / "debug" / "snapviewer-renderer",
+    ]
+
+    renderer_binary = None
+    for path in renderer_paths:
+        if path.exists():
+            renderer_binary = str(path)
+            break
+
+    if not renderer_binary:
+        # Try to find via cargo
+        print("Renderer binary not found in expected locations, building...")
+        subprocess.run(
+            ["cargo", "build", "--release", "--bin", "snapviewer-renderer"],
+            cwd=script_dir,
+            check=True,
+        )
+        renderer_binary = str(script_dir / "target" / "release" / "snapviewer-renderer")
+
+    cmd = [
+        renderer_binary,
+        "--dir", args.dir,
+        "--res", str(args.resolution[0]), str(args.resolution[1]),
+        "--pub-port", str(args.pub_port),
+        "--rep-port", str(args.rep_port),
+        "--log", args.log,
+    ]
+
+    print(f"Starting renderer process: {' '.join(cmd)}")
+    renderer_process = subprocess.Popen(cmd)
+
+
+def run_gui(args):
+    """Run the GUI application"""
+    global app_instance, sql_client
+
+    # Create SQL client and connect
+    sql_client = ZeroMQSQLClient("127.0.0.1", args.rep_port)
+    sql_client.connect()
+
+    app_instance = SnapViewerApp(args, sql_client)
     app_instance.run()
 
     print("Stopping SnapViewer application...")
@@ -472,7 +606,7 @@ def run_gui(args):
 
 def main():
     """Run the application"""
-    parser = argparse.ArgumentParser(description="Python GUI with Message Display Area and Echo REPL")
+    parser = argparse.ArgumentParser(description="Python GUI with Message Display Area and SQLite REPL")
 
     def positive_int(value):
         ivalue = int(value)
@@ -502,6 +636,18 @@ def main():
         metavar=("WIDTH", "HEIGHT"),  # Help text for the arguments
         help="Specify resolution as two positive integers (WIDTH HEIGHT).",
     )
+    parser.add_argument(
+        "--pub-port",
+        type=int,
+        default=5555,
+        help="ZeroMQ PUB socket port (Renderer -> UI). Default: 5555",
+    )
+    parser.add_argument(
+        "--rep-port",
+        type=int,
+        default=5556,
+        help="ZeroMQ REP socket port (UI -> Renderer). Default: 5556",
+    )
 
     args = parser.parse_args()
 
@@ -513,25 +659,15 @@ def main():
         print(f"Error: The specified path '{args.dir}' does not exist.")
         exit(1)  # Exit the program with an error code
 
-    global snapviewer
-    snapviewer = SnapViewer(args.dir, args.resolution, args.log)
+    # Spawn the renderer process
+    spawn_renderer(args)
 
-    # Start GUI in a separate thread (non-daemon so it stays alive)
-    gui_thread = threading.Thread(target=run_gui, args=(args,), daemon=True)
-    gui_thread.start()
+    # Give the renderer a moment to start up and bind its sockets
+    import time
+    time.sleep(0.5)
 
-    # Run viewer in main thread (blocking infinite loop)
-    try:
-        # this calls into Rust extension.
-        # block current thread, but does NOT hold GIL.
-        # MUST run on main thread.
-        snapviewer.viewer(message_callback)
-    except KeyboardInterrupt:
-        print("\nShutting down...")
-        # The GUI close event will handle termination
-    except Exception as e:
-        print(f"Error in viewer: {e}")
-        terminate()
+    # Run the GUI (this is now the main process)
+    run_gui(args)
 
 
 if __name__ == "__main__":

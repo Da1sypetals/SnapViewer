@@ -1,3 +1,4 @@
 orjson
+pyzmq>=26.0
 tqdm
 maturin

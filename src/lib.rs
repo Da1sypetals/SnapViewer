@@ -1,5 +1,6 @@
 #![forbid(dead_code)]
 pub mod allocation;
+#[cfg(feature = "python")]
 pub mod binding;
 pub mod constants;
 pub mod database;
