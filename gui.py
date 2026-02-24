@@ -580,6 +580,7 @@ def spawn_renderer(args):
         renderer_binary,
         "--dir", args.dir,
         "--res", str(args.resolution[0]), str(args.resolution[1]),
+        "--resolution-ratio", str(args.resolution_ratio),
         "--pub-port", str(args.pub_port),
         "--rep-port", str(args.rep_port),
         "--log", args.log,
@@ -647,6 +648,13 @@ def main():
         type=int,
         default=5556,
         help="ZeroMQ REP socket port (UI -> Renderer). Default: 5556",
+    )
+    parser.add_argument(
+        "-rr",
+        "--resolution-ratio",
+        type=float,
+        default=1.0,
+        help="Resolution ratio for high-DPI displays (e.g., 2.0 for Retina). Default: 1.0",
     )
 
     args = parser.parse_args()

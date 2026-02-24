@@ -1,4 +1,4 @@
-# Snapviewer
+# Snapviewer (macOS)
 
 A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_viz with rich features. Display large snapshots smoothly! 
 
@@ -23,26 +23,31 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
     ```
 > Warning: This software is in pre-alpha stage. Everything including snapshot format, data storing/loading logic is under frequent change.
 
-## Usage:
+## Usage (macOS):
+> Tested on macOS Sequioa 15.7.4, Python 3.13
 - You need Rust toolchain and Python installed.
-- First you need a virtual environment (via `venv` or `conda`). Here we use venv on windows:
+- First you need a virtual environment (via `venv` or `conda`). Here we use `conda`:
   - Activate `venv`
-    ```powershell
-    .\.venv\Scripts\activate
+    ```bash
+    conda activate base
     ```
   - Install dependencies
-    ```powershell
+    ```bash
     pip install -r requirements.txt
     ```
-- Build the extension under release mode
-  ```sh
-  maturin dev -r
+- Compile binary
+  ```bash
+  cargo build --release --bin snapviewer-renderer --no-default-features
   ```
-- Specify resolution, log level and directory to your snapshot (which should have `allocations.json` and `elements.db`), and run the application.
-  - Tkinter application (tested on windows and linux)
-    ```sh
-    python gui.py --log info --res 2400 1000 -d <dir_to_your_snapshot>
-    ```
+
+- Run
+
+  `-rr` is for `--resolution-ratio`, used to deal with the rendering pattern of Apple's retina display.
+  ```bash
+  python gui.py --dir snap/ --res 1200 500 -rr 2.0
+  ```
+
+    
 
 ### Controls
 

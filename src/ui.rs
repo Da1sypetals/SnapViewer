@@ -7,6 +7,7 @@ pub struct WindowTransform {
     pub zoom: f32,
 
     resolution: (u32, u32),
+    resolution_ratio: f64,
 
     min_zoom: f32,
     max_zoom: f32,
@@ -18,11 +19,14 @@ pub struct WindowTransform {
 }
 
 impl WindowTransform {
-    pub fn new(resolution: (u32, u32)) -> Self {
+    pub fn new(resolution: (u32, u32), resolution_ratio: f64) -> Self {
+        // Store logical resolution - this is the world coordinate system
+        // resolution_ratio is used to convert physical viewport/mouse coords to logical
         Self {
-            center: Vector2::new((resolution.0 / 2) as f32, (resolution.1 / 2) as f32), // initially, center is at middle of memory plot
+            center: Vector2::new((resolution.0 / 2) as f32, (resolution.1 / 2) as f32),
             zoom: 1.0,
             resolution,
+            resolution_ratio,
             min_zoom: 0.75,
             max_zoom: 36.0, // TODO: update to max_timesteps / 100
             translate_max: Vector2::new(resolution.0 as f32, resolution.1 as f32),
@@ -60,13 +64,15 @@ impl WindowTransform {
     }
 
     pub fn camera(&self, viewport: Viewport) -> Camera {
+        // viewport is in physical pixels, convert to logical pixels for world height
+        let logical_height = viewport.height as f32 / self.resolution_ratio as f32;
         Camera::new_orthographic(
             viewport,
             vec3(self.center.x, self.center.y, 1.0),
             vec3(self.center.x, self.center.y, 0.0),
             vec3(0.0, 1.0, 0.0),
-            // in real world units, NOT PIXELS
-            viewport.height as f32 * self.scale(),
+            // in real world units (logical pixels), NOT physical pixels
+            logical_height * self.scale(),
             0.0,
             10.0,
         )
@@ -83,6 +89,14 @@ impl WindowTransform {
         let center2cursor_world = center2cursor_px * scale;
 
         self.center + center2cursor_world
+    }
+
+    /// Convert physical pixel mouse coordinates to logical pixel world coordinates
+    /// Mouse events from three_d are in physical pixels, but our world is in logical pixels
+    pub fn screen2world_physical(&self, cursor_pos_physical: (f32, f32)) -> Vector2<f32> {
+        let ratio = self.resolution_ratio as f32;
+        let logical_pos = (cursor_pos_physical.0 / ratio, cursor_pos_physical.1 / ratio);
+        self.screen2world(logical_pos)
     }
 }
 
@@ -103,7 +117,7 @@ impl WindowTransform {
     }
 
     pub fn update_zoom(&mut self, new_zoom: f32, screen_pos: (f32, f32)) {
-        let cursor_world_pos = self.screen2world(screen_pos);
+        let cursor_world_pos = self.screen2world_physical(screen_pos);
         let cursor_to_center = self.center - cursor_world_pos;
 
         let prev_zoom = self.zoom;

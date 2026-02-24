@@ -39,12 +39,17 @@ struct Args {
     /// Log level
     #[arg(long, default_value_t = String::from("info"))]
     log: String,
+
+    /// Resolution ratio for high-DPI displays (e.g., 2.0 for Retina)
+    #[arg(long, default_value_t = 1.0)]
+    resolution_ratio: f64,
 }
 
 struct RendererState {
     db_ptr: u64,
     _allocs: Arc<[Allocation]>,
     resolution: (u32, u32),
+    resolution_ratio: f64,
     pub_socket: zmq::Socket,
     rep_socket: zmq::Socket,
 }
@@ -122,6 +127,7 @@ fn main() -> AnyhowResult<()> {
         db_ptr: db as *mut AllocationDatabase as u64,
         _allocs: allocs,
         resolution,
+        resolution_ratio: args.resolution_ratio,
         pub_socket,
         rep_socket,
     };
@@ -164,7 +170,7 @@ fn run_render_loop(
     info!("Setting up window and UI...");
 
     // Window transformation
-    let mut win_trans = WindowTransform::new(state.resolution);
+    let mut win_trans = WindowTransform::new(state.resolution, state.resolution_ratio);
     win_trans.set_zoom_limits(0.75, (rl.trace_geom.max_time as f32 / 100.0).max(2.0));
 
     // Ticks
@@ -181,6 +187,7 @@ fn run_render_loop(
         db_ptr,
         _allocs,
         resolution: _,
+        resolution_ratio: _,
         pub_socket,
         rep_socket,
     } = state;
@@ -205,7 +212,7 @@ fn run_render_loop(
                     match button {
                         MouseButton::Left => {
                             info!("Left click window pos: ({}, {})", position.x, position.y);
-                            let cursor_world_pos = win_trans.screen2world(position.into());
+                            let cursor_world_pos = win_trans.screen2world_physical(position.into());
                             info!(
                                 "Left click world pos: ({}, {})",
                                 cursor_world_pos.x, cursor_world_pos.y
@@ -229,7 +236,7 @@ fn run_render_loop(
                         }
                         MouseButton::Right => {
                             info!("Right click window pos: ({}, {})", position.x, position.y);
-                            let cursor_world_pos = win_trans.screen2world(position.into());
+                            let cursor_world_pos = win_trans.screen2world_physical(position.into());
                             info!(
                                 "Right click world pos: ({}, {})",
                                 cursor_world_pos.x, cursor_world_pos.y
