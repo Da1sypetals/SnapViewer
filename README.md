@@ -44,6 +44,12 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
     python gui.py --log info --res 2400 1000 -d <dir_to_your_snapshot>
     ```
 
+### Controls
+
+- Pan: WASD / Arrow Keys
+- Zoom: Mouse Wheel
+- Left click on an allocation for detailed info about it
+
 ## Notes
 - Minimal dependency is **not** a goal.
 - todo:
