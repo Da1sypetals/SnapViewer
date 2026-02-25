@@ -173,14 +173,16 @@ fn run_render_loop(
     let resolution_ratio = state.resolution_ratio; // Store for use in render loop
 
     // Ticks
-    let tickgen = TickGenerator::jbmono(state.resolution, 20.0);
+    // pick a reasonable font size
+    let fontsize_px = 20.0 * (rl.resolution.1 as f32 / 800.0);
+    let tickgen = TickGenerator::jbmono(state.resolution, fontsize_px);
 
     // FPS timer
     let mut timer = FpsTimer::new();
 
     // Drag state for mouse-drag panning (start/end position approach)
     let mut dragging = false;
-    let mut drag_start_mouse_pos: (f32, f32) = (0.0, 0.0);  // physical pixels
+    let mut drag_start_mouse_pos: (f32, f32) = (0.0, 0.0); // physical pixels
     let mut drag_start_center: Vector2<f32> = Vector2::new(0.0, 0.0);
 
     bar.finish();
@@ -212,14 +214,18 @@ fn run_render_loop(
         for event in frame_input.events.iter() {
             match *event {
                 Event::MousePress {
-                    button, position, modifiers, ..
+                    button,
+                    position,
+                    modifiers,
+                    ..
                 } => {
                     match button {
                         MouseButton::Left => {
                             if modifiers.ctrl {
                                 // Show allocation detail
                                 info!("Left click window pos: ({}, {})", position.x, position.y);
-                                let cursor_world_pos = win_trans.screen2world_physical(position.into());
+                                let cursor_world_pos =
+                                    win_trans.screen2world_physical(position.into());
                                 info!(
                                     "Left click world pos: ({}, {})",
                                     cursor_world_pos.x, cursor_world_pos.y

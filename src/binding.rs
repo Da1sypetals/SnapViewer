@@ -169,14 +169,15 @@ impl SnapViewer {
         let resolution_ratio = self.resolution_ratio; // Store for use in render loop
 
         // ticks
-        let tickgen = TickGenerator::jbmono(rl.resolution, 20.0);
+        let fontsize_px = 20.0 * (rl.resolution.1 as f32 / 1000.0);
+        let tickgen = TickGenerator::jbmono(rl.resolution, fontsize_px);
 
         // start a timer
         let mut timer = FpsTimer::new();
 
         // Drag state for mouse-drag panning (start/end position approach)
         let mut dragging = false;
-        let mut drag_start_mouse_pos: (f32, f32) = (0.0, 0.0);  // physical pixels
+        let mut drag_start_mouse_pos: (f32, f32) = (0.0, 0.0); // physical pixels
         let mut drag_start_center: Vector2<f32> = Vector2::new(0.0, 0.0);
 
         bar.finish();
@@ -190,7 +191,10 @@ impl SnapViewer {
             for event in frame_input.events.iter() {
                 match *event {
                     Event::MousePress {
-                        button, position, modifiers, ..
+                        button,
+                        position,
+                        modifiers,
+                        ..
                     } => {
                         // rustfmt don't eliminate by brace
                         match button {
