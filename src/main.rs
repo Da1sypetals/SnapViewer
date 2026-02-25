@@ -2,7 +2,6 @@ use anyhow::Result as AnyhowResult;
 use clap::Parser;
 use log::info;
 use snapviewer::{
-    allocation::Allocation,
     database::sqlite::AllocationDatabase,
     load::read_allocations,
     render_loop::{FpsTimer, RenderLoop},
@@ -47,7 +46,6 @@ struct Args {
 
 struct RendererState {
     db_ptr: u64,
-    _allocs: Arc<[Allocation]>,
     resolution: (u32, u32),
     resolution_ratio: f64,
     pub_socket: zmq::Socket,
@@ -125,7 +123,6 @@ fn main() -> AnyhowResult<()> {
     // Run render loop
     let state = RendererState {
         db_ptr: db as *mut AllocationDatabase as u64,
-        _allocs: allocs,
         resolution,
         resolution_ratio: args.resolution_ratio,
         pub_socket,
@@ -185,7 +182,6 @@ fn run_render_loop(
 
     let RendererState {
         db_ptr,
-        _allocs,
         resolution: _,
         resolution_ratio: _,
         pub_socket,

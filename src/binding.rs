@@ -22,12 +22,18 @@ pub struct SnapViewer {
     pub allocs: Arc<[Allocation]>,
     pub log_level: log::LevelFilter,
     pub resolution: (u32, u32),
+    pub resolution_ratio: f64,
 }
 
 #[pymethods]
 impl SnapViewer {
     #[new]
-    pub fn new(dir: String, resolution: (u32, u32), log_level: String) -> PyResult<Self> {
+    pub fn new(
+        dir: String,
+        resolution: (u32, u32),
+        log_level: String,
+        resolution_ratio: f64,
+    ) -> PyResult<Self> {
         let log_level = match log_level.as_str() {
             "trace" => log::LevelFilter::Trace,
             "info" => log::LevelFilter::Info,
@@ -65,9 +71,10 @@ impl SnapViewer {
         Ok(Self {
             db_ptr: db as *mut AllocationDatabase as u64,
             allocs,
-            resolution,
             log_level,
             dir,
+            resolution,
+            resolution_ratio,
         })
     }
 
@@ -156,7 +163,7 @@ impl SnapViewer {
         info!("Setting up window and UI...");
 
         // window transformation (moving & zooming)
-        let mut win_trans = WindowTransform::new(rl.resolution);
+        let mut win_trans = WindowTransform::new(rl.resolution, self.resolution_ratio);
         win_trans.set_zoom_limits(0.75, (rl.trace_geom.max_time as f32 / 100.0).max(2.0));
 
         // ticks
