@@ -57,6 +57,6 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
 ## Notes
 - Minimal dependency is **not** a goal.
+- On macos, TKinter is required to run on main thread; while on all platforms the renderer is also required to run on main thread. This means we need multiple processes if we want to do cross platform.
 - todo:
-  - reorganize where each function and struct should be placed
-  - clean code and rename functions
+  - test this zmq-based impl on windows/linux, if it works, remove the python binding impl.
