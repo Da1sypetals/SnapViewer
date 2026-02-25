@@ -8,6 +8,7 @@ use crate::{
     utils::{IntoPyErr, format_bytes_precision, get_spinner, memory_usage},
 };
 use log::info;
+use nalgebra::Vector2;
 use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use std::sync::Arc;
 use three_d::{
@@ -165,6 +166,7 @@ impl SnapViewer {
         // window transformation (moving & zooming)
         let mut win_trans = WindowTransform::new(rl.resolution, self.resolution_ratio);
         win_trans.set_zoom_limits(0.75, (rl.trace_geom.max_time as f32 / 100.0).max(2.0));
+        let resolution_ratio = self.resolution_ratio; // Store for use in render loop
 
         // ticks
         let tickgen = TickGenerator::jbmono(rl.resolution, 20.0);
@@ -172,50 +174,63 @@ impl SnapViewer {
         // start a timer
         let mut timer = FpsTimer::new();
 
+        // Drag state for mouse-drag panning (start/end position approach)
+        let mut dragging = false;
+        let mut drag_start_mouse_pos: (f32, f32) = (0.0, 0.0);  // physical pixels
+        let mut drag_start_center: Vector2<f32> = Vector2::new(0.0, 0.0);
+
         bar.finish();
 
         println!("Memory at start of render loop: {} MiB", memory_usage());
         let db_ptr = self.db_ptr;
         window.render_loop(move |frame_input| {
+            let resolution_ratio = resolution_ratio; // Force move into closure
             // render loop start
 
             for event in frame_input.events.iter() {
                 match *event {
                     Event::MousePress {
-                        button, position, ..
+                        button, position, modifiers, ..
                     } => {
                         // rustfmt don't eliminate by brace
                         match button {
                             MouseButton::Left => {
-                                let cursor_world_pos = win_trans.screen2world(position.into());
-                                info!(
-                                    "Left click world pos: ({}, {})",
-                                    cursor_world_pos.x, cursor_world_pos.y
-                                );
-
-                                // try to find allocation by cursor position
-                                let alloc_idx = rl.trace_geom.find_by_pos(cursor_world_pos);
-                                info!("Find by pos results: alloc id: {:?}", alloc_idx);
-
-                                // if we found an allocation at cursor position
-                                if let Some(idx) = alloc_idx {
-                                    // print allocation info
-                                    let msg = format!(
-                                        "Allocation #{}\n{}",
-                                        idx,
-                                        // WTF? I believe this must be a bug of rustc. This line does not work.
-                                        // This is a Copy type which should not involve any lifetime stuff.
-                                        // Self::allocation_info(&rl, self.db_ptr, idx)
-                                        rl.allocation_info(db_ptr, idx)
+                                if modifiers.ctrl {
+                                    // Start dragging - record start positions
+                                    dragging = true;
+                                    drag_start_mouse_pos = (position.x, position.y);
+                                    drag_start_center = win_trans.center;
+                                } else {
+                                    let cursor_world_pos = win_trans.screen2world(position.into());
+                                    info!(
+                                        "Left click world pos: ({}, {})",
+                                        cursor_world_pos.x, cursor_world_pos.y
                                     );
 
-                                    Python::with_gil(|py| {
-                                        if let Err(e) = callback.call1(py, (msg,)) {
-                                            eprintln!("{}", e);
-                                        }
-                                    });
+                                    // try to find allocation by cursor position
+                                    let alloc_idx = rl.trace_geom.find_by_pos(cursor_world_pos);
+                                    info!("Find by pos results: alloc id: {:?}", alloc_idx);
 
-                                    rl.show_alloc(&context, idx);
+                                    // if we found an allocation at cursor position
+                                    if let Some(idx) = alloc_idx {
+                                        // print allocation info
+                                        let msg = format!(
+                                            "Allocation #{}\n{}",
+                                            idx,
+                                            // WTF? I believe this must be a bug of rustc. This line does not work.
+                                            // This is a Copy type which should not involve any lifetime stuff.
+                                            // Self::allocation_info(&rl, self.db_ptr, idx)
+                                            rl.allocation_info(db_ptr, idx)
+                                        );
+
+                                        Python::with_gil(|py| {
+                                            if let Err(e) = callback.call1(py, (msg,)) {
+                                                eprintln!("{}", e);
+                                            }
+                                        });
+
+                                        rl.show_alloc(&context, idx);
+                                    }
                                 }
                             }
                             MouseButton::Right => {
@@ -267,6 +282,27 @@ impl SnapViewer {
                                 info!("{:?},", key);
                             }
                         }
+                    }
+                    Event::MouseMotion { position, .. } => {
+                        if dragging {
+                            let ratio = resolution_ratio as f32;
+                            let scale = win_trans.scale();
+                            // Calculate mouse displacement in logical pixels, then scale to world coords
+                            let dx = (position.x - drag_start_mouse_pos.0) / ratio * scale;
+                            let dy = (position.y - drag_start_mouse_pos.1) / ratio * scale;
+                            // New center = start center - displacement (dragging left moves view right)
+                            win_trans.center.x = drag_start_center.x - dx;
+                            win_trans.center.y = drag_start_center.y - dy;
+                            win_trans.enforce_boundaries();
+                        }
+                    }
+                    Event::MouseRelease { button, .. } => {
+                        if button == MouseButton::Left {
+                            dragging = false;
+                        }
+                    }
+                    Event::MouseLeave => {
+                        dragging = false;
                     }
                     _ => {}
                 }

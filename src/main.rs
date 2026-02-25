@@ -1,6 +1,7 @@
 use anyhow::Result as AnyhowResult;
 use clap::Parser;
 use log::info;
+use nalgebra::Vector2;
 use snapviewer::{
     database::sqlite::AllocationDatabase,
     load::read_allocations,
@@ -169,12 +170,18 @@ fn run_render_loop(
     // Window transformation
     let mut win_trans = WindowTransform::new(state.resolution, state.resolution_ratio);
     win_trans.set_zoom_limits(0.75, (rl.trace_geom.max_time as f32 / 100.0).max(2.0));
+    let resolution_ratio = state.resolution_ratio; // Store for use in render loop
 
     // Ticks
     let tickgen = TickGenerator::jbmono(state.resolution, 20.0);
 
     // FPS timer
     let mut timer = FpsTimer::new();
+
+    // Drag state for mouse-drag panning (start/end position approach)
+    let mut dragging = false;
+    let mut drag_start_mouse_pos: (f32, f32) = (0.0, 0.0);  // physical pixels
+    let mut drag_start_center: Vector2<f32> = Vector2::new(0.0, 0.0);
 
     bar.finish();
 
@@ -189,6 +196,8 @@ fn run_render_loop(
     } = state;
 
     window.render_loop(move |frame_input| {
+        let resolution_ratio = resolution_ratio; // Force move into closure
+
         // Handle incoming ZeroMQ messages (non-blocking)
         if let Ok(bytes) = rep_socket.recv_bytes(zmq::DONTWAIT) {
             let command = String::from_utf8_lossy(&bytes);
@@ -203,31 +212,38 @@ fn run_render_loop(
         for event in frame_input.events.iter() {
             match *event {
                 Event::MousePress {
-                    button, position, ..
+                    button, position, modifiers, ..
                 } => {
                     match button {
                         MouseButton::Left => {
-                            info!("Left click window pos: ({}, {})", position.x, position.y);
-                            let cursor_world_pos = win_trans.screen2world_physical(position.into());
-                            info!(
-                                "Left click world pos: ({}, {})",
-                                cursor_world_pos.x, cursor_world_pos.y
-                            );
-
-                            let alloc_idx = rl.trace_geom.find_by_pos(cursor_world_pos);
-                            info!("Find by pos results: alloc id: {:?}", alloc_idx);
-
-                            if let Some(idx) = alloc_idx {
-                                let msg = format!(
-                                    "Allocation #{}\n{}",
-                                    idx,
-                                    rl.allocation_info(db_ptr, idx)
+                            if modifiers.ctrl {
+                                // Start dragging - record start positions
+                                dragging = true;
+                                drag_start_mouse_pos = (position.x, position.y);
+                                drag_start_center = win_trans.center;
+                            } else {
+                                info!("Left click window pos: ({}, {})", position.x, position.y);
+                                let cursor_world_pos = win_trans.screen2world_physical(position.into());
+                                info!(
+                                    "Left click world pos: ({}, {})",
+                                    cursor_world_pos.x, cursor_world_pos.y
                                 );
 
-                                // Send to UI via ZeroMQ
-                                let _ = pub_socket.send(msg.as_bytes(), 0);
+                                let alloc_idx = rl.trace_geom.find_by_pos(cursor_world_pos);
+                                info!("Find by pos results: alloc id: {:?}", alloc_idx);
 
-                                rl.show_alloc(&context, idx);
+                                if let Some(idx) = alloc_idx {
+                                    let msg = format!(
+                                        "Allocation #{}\n{}",
+                                        idx,
+                                        rl.allocation_info(db_ptr, idx)
+                                    );
+
+                                    // Send to UI via ZeroMQ
+                                    let _ = pub_socket.send(msg.as_bytes(), 0);
+
+                                    rl.show_alloc(&context, idx);
+                                }
                             }
                         }
                         MouseButton::Right => {
@@ -274,6 +290,27 @@ fn run_render_loop(
                         info!("{:?},", key);
                     }
                 },
+                Event::MouseMotion { position, .. } => {
+                    if dragging {
+                        let ratio = resolution_ratio as f32;
+                        let scale = win_trans.scale();
+                        // Calculate mouse displacement in logical pixels, then scale to world coords
+                        let dx = (position.x - drag_start_mouse_pos.0) / ratio * scale;
+                        let dy = (position.y - drag_start_mouse_pos.1) / ratio * scale;
+                        // New center = start center - displacement (dragging left moves view right)
+                        win_trans.center.x = drag_start_center.x - dx;
+                        win_trans.center.y = drag_start_center.y - dy;
+                        win_trans.enforce_boundaries();
+                    }
+                }
+                Event::MouseRelease { button, .. } => {
+                    if button == MouseButton::Left {
+                        dragging = false;
+                    }
+                }
+                Event::MouseLeave => {
+                    dragging = false;
+                }
                 _ => {}
             }
         }
