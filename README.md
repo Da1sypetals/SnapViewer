@@ -27,7 +27,7 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 > Tested on macOS Sequioa 15.7.4, Python 3.13
 - You need Rust toolchain and Python installed.
 - First you need a virtual environment (via `venv` or `conda`). Here we use `conda`:
-  - Activate `venv`
+  - Activate your environment
     ```bash
     conda activate base
     ```
