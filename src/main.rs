@@ -217,11 +217,7 @@ fn run_render_loop(
                     match button {
                         MouseButton::Left => {
                             if modifiers.ctrl {
-                                // Start dragging - record start positions
-                                dragging = true;
-                                drag_start_mouse_pos = (position.x, position.y);
-                                drag_start_center = win_trans.center;
-                            } else {
+                                // Show allocation detail
                                 info!("Left click window pos: ({}, {})", position.x, position.y);
                                 let cursor_world_pos = win_trans.screen2world_physical(position.into());
                                 info!(
@@ -244,6 +240,11 @@ fn run_render_loop(
 
                                     rl.show_alloc(&context, idx);
                                 }
+                            } else {
+                                // Start dragging - record start positions
+                                dragging = true;
+                                drag_start_mouse_pos = (position.x, position.y);
+                                drag_start_center = win_trans.center;
                             }
                         }
                         MouseButton::Right => {

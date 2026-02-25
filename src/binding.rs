@@ -196,11 +196,7 @@ impl SnapViewer {
                         match button {
                             MouseButton::Left => {
                                 if modifiers.ctrl {
-                                    // Start dragging - record start positions
-                                    dragging = true;
-                                    drag_start_mouse_pos = (position.x, position.y);
-                                    drag_start_center = win_trans.center;
-                                } else {
+                                    // Show allocation detail
                                     let cursor_world_pos = win_trans.screen2world(position.into());
                                     info!(
                                         "Left click world pos: ({}, {})",
@@ -231,6 +227,11 @@ impl SnapViewer {
 
                                         rl.show_alloc(&context, idx);
                                     }
+                                } else {
+                                    // Start dragging - record start positions
+                                    dragging = true;
+                                    drag_start_mouse_pos = (position.x, position.y);
+                                    drag_start_center = win_trans.center;
                                 }
                             }
                             MouseButton::Right => {
