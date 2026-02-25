@@ -51,9 +51,9 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
 ### Controls
 
-- Pan: WASD / Arrow Keys
+- Pan: WASD / Left Mouse Drag
 - Zoom: Mouse Wheel
-- Left click on an allocation for detailed info about it
+- (Ctrl + Left click) on an allocation for detailed info about it
 
 ## Notes
 - Minimal dependency is **not** a goal.
