@@ -7,9 +7,10 @@ use snapviewer::{
     load::read_allocations,
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,
-    ui::{TranslateDir, WindowTransform},
+    window_transform::{TranslateDir, WindowTransform},
     utils::{format_bytes_precision, get_spinner, memory_usage},
 };
+use std::path::PathBuf;
 use std::sync::Arc;
 use three_d::{
     ClearState, ColorMaterial, CpuMesh, Event, FrameOutput, Gm, Mesh, MouseButton, Srgba, Window,
@@ -75,10 +76,11 @@ fn main() -> AnyhowResult<()> {
     };
 
     // Load allocations
-    let allocs = read_allocations(&args.dir)?;
+    let dir = PathBuf::from(&args.dir);
+    let allocs = read_allocations(&dir)?;
 
     // Load database
-    let db = Box::leak(Box::new(AllocationDatabase::from_dir(&args.dir)?));
+    let db = Box::leak(Box::new(AllocationDatabase::from_dir(&dir)?));
     let num_elems = db.row_count()?;
 
     // Data integrity check
