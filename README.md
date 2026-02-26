@@ -1,11 +1,12 @@
-# Snapviewer (macOS)
+# Snapviewer
 
 A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_viz with rich features. Display large snapshots smoothly! 
 
+Tested on Windows and macOS.
+
 ![alt text](snapviewer.gif)
 
-## Usage (macOS):
-> Tested on macOS Sequioa 15.7.4, Python 3.13
+## Usage:
 - You need Rust toolchain and Python installed.
 - First you need a virtual environment (via `venv` or `conda`). Here we use `conda`:
   - Activate your environment
@@ -23,7 +24,7 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
 - Run
 
-  `-rr` is for `--resolution-ratio`, used to deal with the rendering pattern of Apple's retina display.
+  `-rr` is for `--resolution-ratio`, used to deal with the rendering pattern of Apple's retina display. You probably need `-rr 2.0` if you are using MacBook.
 
   **Option A: Pass the `.pickle` directly.** Preprocessing artifacts are cached at `~/.snapviewer_cache/` and reused on subsequent runs.
   ```bash
@@ -32,13 +33,10 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
   **Option B: Pre-process manually and pass the directory.**
   ```bash
-  # 1. Convert snapshot to zip
-  python convert_snap.py -i snap/large.pickle -o snap/large.zip
+  # 1. Convert snapshot — outputs allocations.json and elements.db under the directory
+  python convert_snap.py -i snap/large.pickle -o ./large
 
-  # 2. Decompress — you should see allocations.json and elements.db
-  unzip snap/large.zip -d ./large
-
-  # 3. Run
+  # 2. Run
   python gui.py --dir ./large --res 1200 500 -rr 2.0
   ```
 

@@ -5,10 +5,10 @@ import pickle
 import shutil
 import sqlite3
 import sys
-import zipfile
 import tempfile
 
 from tqdm import tqdm, trange
+import orjson as json
 
 # Configure logging to output to stdout with timestamps and log level
 logging.basicConfig(
@@ -17,18 +17,8 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 
-# try to import orjson for faster json serialization
-try:
-    import orjson as json
 
-    logging.info("Using orjson")
-except ImportError:
-    import json
-
-    logging.warning("Falling back to stdlib json")
-
-
-# Constants for file names used in the zip output
+# Constants for output file names
 ALLOCATIONS_FILE_NAME = "allocations.json"
 DATABASE_FILE_NAME = "elements.db"
 DATABASE_SCHEMA = """CREATE TABLE allocs (
@@ -311,48 +301,21 @@ def convert_pickle_to_dir(pickle_path: str, output_dir: str, device_id: int = 0)
 
 def cli():
     """
-    Command-line interface to process a snapshot and export memory trace to a zip.
+    Command-line interface to process a snapshot and write allocations.json + elements.db to a directory.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", required=True, type=str, help="Path to snapshot pickle")
-    parser.add_argument("-o", "--output", required=True, type=str, help="Output zip file path")
+    parser.add_argument("-o", "--output", required=True, type=str, help="Output directory path")
     parser.add_argument("-d", "--device", type=int, default=0, help="Device ID (default=0)")
     args = parser.parse_args()
 
-    # Load the snapshot
-    with open(args.input, "rb") as f:
-        dump = pickle.load(f)
+    os.makedirs(args.output, exist_ok=True)
+    convert_pickle_to_dir(args.input, args.output, args.device)
 
-    # Extract and process trace
-    trace = get_trace(dump, args.device)
-    allocations, elements = trace_to_allocation_data(trace)
-
-    # Create temporary database file
-    db_file_path = None
-    try:
-        db_file_path = make_db(allocations, elements)
-
-        # Save trace to a zip file
-        logging.info("Saving trace dictionary as zip")
-        with zipfile.ZipFile(args.output, "w") as zf:
-            logging.info("Dumping allocations to byte stream")
-            allocation_bytes = json.dumps(allocations)
-
-            logging.info("Saving allocations")
-            zf.writestr(ALLOCATIONS_FILE_NAME, allocation_bytes, compress_type=zipfile.ZIP_DEFLATED)
-
-            logging.info(f"Saving database from temporary file: {db_file_path}")
-            zf.write(db_file_path, arcname=DATABASE_FILE_NAME, compress_type=zipfile.ZIP_DEFLATED)
-
-    finally:
-        # Clean up the temporary database file
-        if db_file_path and os.path.exists(db_file_path):
-            logging.info(f"Deleting temporary database file: {db_file_path}")
-            os.remove(db_file_path)
-
-    print("Trace lengths:")
-    print(f"    {len(allocations) = }")
-    print(f"    {len(elements) = }")
+    print("Done.")
+    print(f"Output written to: {args.output}")
+    print(f"  {os.path.join(args.output, ALLOCATIONS_FILE_NAME)}")
+    print(f"  {os.path.join(args.output, DATABASE_FILE_NAME)}")
 
 
 if __name__ == "__main__":
