@@ -52,6 +52,11 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 - Zoom: Mouse Wheel
 - (Ctrl + Left click) on an allocation for detailed info about it
 
+
+## Troubleshoot
+
+- If you see errors with message like `cannot open input file 'sqlite3.lib'`, enable feature flag `--features bundled-sqlite`.
+
 ## Notes
 - Minimal dependency is **not** a goal.
 - On macos, TKinter is required to run on main thread; while on all platforms the renderer is also required to run on main thread. This means we need multiple processes if we want to do cross platform.
