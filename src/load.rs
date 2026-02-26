@@ -5,7 +5,7 @@ use indicatif::ProgressIterator;
 use log::info;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 
 /// Reads from dir.join(allocations.json) and deserialize
@@ -14,11 +14,11 @@ use std::sync::Arc;
 /// An atomic refcounted pointer to allocation slice.
 ///
 /// Executed at start
-pub fn read_allocations(dir: &str) -> anyhow::Result<Arc<[Allocation]>> {
+pub fn read_allocations(dir: &Path) -> anyhow::Result<Arc<[Allocation]>> {
     info!("Loading json strings from zip...");
 
     // Open the zip file
-    let allocations_path = PathBuf::from(dir).join(ALLOCATIONS_FILE_NAME);
+    let allocations_path = dir.join(ALLOCATIONS_FILE_NAME);
     let mut file = File::open(allocations_path)?;
 
     info!("Reading {} to string", ALLOCATIONS_FILE_NAME);

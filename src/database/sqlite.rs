@@ -3,7 +3,7 @@ use crate::{
     utils::{get_spinner, memory_usage},
 };
 use rusqlite::Connection;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct AllocationDatabase {
@@ -11,14 +11,14 @@ pub struct AllocationDatabase {
 }
 
 impl AllocationDatabase {
-    pub fn from_dir(dir: &str) -> anyhow::Result<Self> {
+    pub fn from_dir(dir: &Path) -> anyhow::Result<Self> {
         log::info!("Creating allocations database");
         println!(
             "Memory before connecting to database: {} MiB",
             memory_usage()
         );
 
-        let elements_path = PathBuf::from(dir).join(ELEMENT_DB_FILENAME);
+        let elements_path = dir.join(ELEMENT_DB_FILENAME);
 
         Ok(Self {
             conn: Connection::open(elements_path)?,
