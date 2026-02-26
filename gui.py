@@ -444,11 +444,8 @@ class REPLPanel(ttk.Frame):
                 elif cmd == "--schema":
                     self.output_lines.append(f"[{timestamp}]\n{DATABASE_SCHEMA}")
                 else:
-                    try:
-                        output = self.app.sql_client.execute_sql(command)
-                        self.output_lines.append(f"[{timestamp}]\n{output}")
-                    except Exception as e:
-                        self.output_lines.append(f"[{timestamp}]\nError: {e}")
+                    output = app_instance.sql_client.execute_sql(command)
+                    self.output_lines.append(f"[{timestamp}]\n{output}")
 
             self.update_output()
 
