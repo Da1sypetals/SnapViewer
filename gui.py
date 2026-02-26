@@ -9,15 +9,55 @@ Features:
 - Communication via ZeroMQ IPC
 """
 
-import argparse
+import ctypes
 import os
+import platform
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
+from ctypes import wintypes
 from datetime import datetime
+from pathlib import Path
 from tkinter import font, messagebox, scrolledtext, ttk
+
 import zmq
+from blake3 import blake3 as blake3_hasher
+
+from convert_snap import convert_pickle_to_dir
+
+VERSION = "0"
+
+
+_HASH_CAP = 128 * 1024 * 1024  # 128 MB
+
+
+def compute_file_hash(path: str) -> str:
+    h = blake3_hasher(max_threads=blake3_hasher.AUTO)
+    with open(path, "rb") as f:
+        h.update(f.read(_HASH_CAP))
+    return h.hexdigest()
+
+
+def get_or_create_cache(pickle_path: str, device_id: int) -> str:
+
+    cache_root = Path.home() / ".snapviewer_cache"
+    file_hash = compute_file_hash(pickle_path)
+    cache_key = f"{file_hash}_dev{device_id}_v{VERSION}"
+    cache_dir = cache_root / cache_key
+    alloc_file = cache_dir / "allocations.json"
+    db_file = cache_dir / "elements.db"
+    if alloc_file.exists() and db_file.exists():
+        print("Cache hit:")
+        print(f"- version: {VERSION}")
+        print(f"- path:    {cache_dir}")
+        return str(cache_dir)
+    print(f"Cache miss, converting pickle: {pickle_path}")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    convert_pickle_to_dir(pickle_path, str(cache_dir), device_id)
+    return str(cache_dir)
+
 
 # Global reference to the app instance for callback access
 app_instance = None
@@ -131,13 +171,8 @@ class MessagePanel(ttk.Frame):
                     "font", "create", "JetBrainsMonoCustom", "-family", "JetBrains Mono", "-size", "14"
                 )
                 # Try to load the actual font file using platform-specific methods
-                import platform
-
                 if platform.system() == "Windows":
                     try:
-                        import ctypes
-                        from ctypes import wintypes
-
                         # Load font temporarily for this session
                         gdi32 = ctypes.windll.gdi32
                         gdi32.AddFontResourceW.argtypes = [wintypes.LPCWSTR]
@@ -277,13 +312,8 @@ class REPLPanel(ttk.Frame):
                     "font", "create", "JetBrainsMonoCustom", "-family", "JetBrains Mono", "-size", "14"
                 )
                 # Try to load the actual font file using platform-specific methods
-                import platform
-
                 if platform.system() == "Windows":
                     try:
-                        import ctypes
-                        from ctypes import wintypes
-
                         # Load font temporarily for this session
                         gdi32 = ctypes.windll.gdi32
                         gdi32.AddFontResourceW.argtypes = [wintypes.LPCWSTR]
@@ -550,9 +580,6 @@ def spawn_renderer(args):
 
     # Find the renderer binary
     # First try the target/release directory
-    import sys
-    from pathlib import Path
-
     # Get the directory where this script is located
     script_dir = Path(__file__).parent
     renderer_paths = [
@@ -578,12 +605,19 @@ def spawn_renderer(args):
 
     cmd = [
         renderer_binary,
-        "--dir", args.dir,
-        "--res", str(args.resolution[0]), str(args.resolution[1]),
-        "--resolution-ratio", str(args.resolution_ratio),
-        "--pub-port", str(args.pub_port),
-        "--rep-port", str(args.rep_port),
-        "--log", args.log,
+        "--dir",
+        args.dir,
+        "--res",
+        str(args.resolution[0]),
+        str(args.resolution[1]),
+        "--resolution-ratio",
+        str(args.resolution_ratio),
+        "--pub-port",
+        str(args.pub_port),
+        "--rep-port",
+        str(args.rep_port),
+        "--log",
+        args.log,
     ]
 
     print(f"Starting renderer process: {' '.join(cmd)}")
@@ -606,7 +640,8 @@ def run_gui(args):
 
 
 def main():
-    """Run the application"""
+    import argparse
+
     parser = argparse.ArgumentParser(description="Python GUI with Message Display Area and SQLite REPL")
 
     def positive_int(value):
@@ -621,13 +656,6 @@ def main():
         choices=["info", "trace"],
         default="info",
         help="Set the logging level (info or trace).",
-    )
-    parser.add_argument(
-        "-d",
-        "--dir",
-        type=str,
-        required=True,
-        help="Directory where the trace file live. Should have allocations.json and elements.db",
     )
     parser.add_argument(
         "--res",
@@ -657,21 +685,55 @@ def main():
         help="Resolution ratio for high-DPI displays (e.g., 2.0 for Retina). Default: 1.0",
     )
 
+    source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument(
+        "-d",
+        "--dir",
+        type=str,
+        help="Directory containing allocations.json and elements.db",
+    )
+    source_group.add_argument(
+        "--pickle",
+        type=str,
+        help="Path to a .pickle snapshot. Preprocessing result is cached under ~/.snapviewer_cache/",
+    )
+
+    parser.add_argument(
+        "--device",
+        type=int,
+        default=0,
+        help="Device ID to use when --pickle is provided. Default: 0",
+    )
+
     args = parser.parse_args()
 
     # Convert the resolution list to a tuple after parsing
     args.resolution = tuple(args.res)
+
+    if args.pickle:
+        if not os.path.exists(args.pickle):
+            print(f"Error: pickle file '{args.pickle}' does not exist.")
+            exit(1)
+        args.dir = get_or_create_cache(args.pickle, args.device)
 
     # Verify that the path exists
     if not os.path.exists(args.dir):
         print(f"Error: The specified path '{args.dir}' does not exist.")
         exit(1)  # Exit the program with an error code
 
+    # Check ports are available before spawning anything
+    import socket
+
+    for port, name in [(args.pub_port, "pub"), (args.rep_port, "rep")]:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", port)) == 0:
+                print(f"Error: port {port} (--{name}-port) is already in use.")
+                exit(1)
+
     # Spawn the renderer process
     spawn_renderer(args)
 
     # Give the renderer a moment to start up and bind its sockets
-    import time
     time.sleep(0.5)
 
     # Run the GUI (this is now the main process)
