@@ -1,4 +1,5 @@
 __pycache__
+/llm_docs
 /snap
 CLAUDE.md
 /.vscode
