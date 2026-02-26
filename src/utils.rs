@@ -3,21 +3,6 @@ use indicatif::{ProgressBar, ProgressStyle};
 use memory_stats::memory_stats;
 use std::time::Duration;
 
-#[cfg(feature = "python")]
-use pyo3::{PyErr, exceptions::PyRuntimeError};
-
-#[cfg(feature = "python")]
-pub trait IntoPyErr {
-    fn into_py_runtime_err(self) -> PyErr;
-}
-
-#[cfg(feature = "python")]
-impl IntoPyErr for anyhow::Error {
-    fn into_py_runtime_err(self) -> PyErr {
-        PyRuntimeError::new_err(self.to_string())
-    }
-}
-
 pub fn memory_usage() -> f64 {
     memory_stats().unwrap().virtual_mem as f64 / (1024.0 * 1024.0)
 }
