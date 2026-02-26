@@ -4,25 +4,6 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 
 ![alt text](snapviewer.gif)
 
-## Preprocessing
-
-1.  **Record Snapshot:** Generate a memory snapshot of your PyTorch model. Refer to the [official PyTorch documentation](https://docs.pytorch.org/docs/stable/torch_cuda_memory.html) for detailed instructions.
-
-2.  **Convert to ZIP:** Convert the `.pickle` snapshot to a `.zip` format (compressed json) using `convert_snap.py`.
-
-    ```sh
-    # Install dependencies
-    pip install -r requirements.txt
-
-    # Convert snapshot
-    python convert_snap.py -i snap/large.pickle -o snap/large.zip
-    ```
-3.  **Decompress converted snapshot**: Unzip the snapshot to certain folder, say, `./large`. You should see two files, namely `allocations.json` and `elements.db`.
-    ```sh
-    unzip snap/large.zip -d ./large
-    ```
-> Warning: This software is in pre-alpha stage. Everything including snapshot format, data storing/loading logic is under frequent change.
-
 ## Usage (macOS):
 > Tested on macOS Sequioa 15.7.4, Python 3.13
 - You need Rust toolchain and Python installed.
@@ -43,9 +24,25 @@ A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_
 - Run
 
   `-rr` is for `--resolution-ratio`, used to deal with the rendering pattern of Apple's retina display.
+
+  **Option A: Pass the `.pickle` directly.** Preprocessing artifacts are cached at `~/.snapviewer_cache/` and reused on subsequent runs.
   ```bash
-  python gui.py --dir snap/ --res 1200 500 -rr 2.0
+  python gui.py --pickle snap/large.pickle --res 1200 500 -rr 2.0
   ```
+
+  **Option B: Pre-process manually and pass the directory.**
+  ```bash
+  # 1. Convert snapshot to zip
+  python convert_snap.py -i snap/large.pickle -o snap/large.zip
+
+  # 2. Decompress — you should see allocations.json and elements.db
+  unzip snap/large.zip -d ./large
+
+  # 3. Run
+  python gui.py --dir ./large --res 1200 500 -rr 2.0
+  ```
+
+> Warning: This software is in pre-alpha stage. Everything including snapshot format, data storing/loading logic is under frequent change.
 
     
 
