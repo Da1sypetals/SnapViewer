@@ -1,9 +1,12 @@
+import argparse
 import logging
+import os
 import pickle
+import shutil
 import sqlite3
 import sys
 import zipfile
-import tempfile  # Import tempfile
+import tempfile
 
 from tqdm import tqdm, trange
 
@@ -288,13 +291,28 @@ def make_db(allocs, elems):
     return temp_db_path
 
 
+def convert_pickle_to_dir(pickle_path: str, output_dir: str, device_id: int = 0):
+    """
+    Process a pickle file and write allocations.json + elements.db to output_dir.
+    output_dir must already exist.
+    """
+    with open(pickle_path, "rb") as f:
+        dump = pickle.load(f)
+    trace = get_trace(dump, device_id)
+    allocations, elements = trace_to_allocation_data(trace)
+    db_file_path = make_db(allocations, elements)
+    shutil.move(db_file_path, os.path.join(output_dir, DATABASE_FILE_NAME))
+    alloc_bytes = json.dumps(allocations)
+    with open(
+        os.path.join(output_dir, ALLOCATIONS_FILE_NAME), "wb" if isinstance(alloc_bytes, bytes) else "w"
+    ) as f:
+        f.write(alloc_bytes)
+
+
 def cli():
     """
     Command-line interface to process a snapshot and export memory trace to a zip.
     """
-    import argparse
-    import os  # Import os for deleting the temporary file
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", required=True, type=str, help="Path to snapshot pickle")
     parser.add_argument("-o", "--output", required=True, type=str, help="Output zip file path")
