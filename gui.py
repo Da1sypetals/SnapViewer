@@ -575,30 +575,37 @@ def spawn_renderer(args):
     """Spawn the renderer process"""
     global renderer_process
 
-    # Find the renderer binary
-    # First try the target/release directory
-    # Get the directory where this script is located
-    script_dir = Path(__file__).parent
-    renderer_paths = [
-        script_dir / "target" / "release" / "snapviewer-renderer",
-        script_dir / "target" / "debug" / "snapviewer-renderer",
-    ]
+    if args.bin:
+        renderer_binary = args.bin
+        if not Path(renderer_binary).exists():
+            print(f"Error: Renderer binary not found at {renderer_binary}")
+            sys.exit(1)
+    else:
+        # Find the renderer binary
+        # First try the target/release directory
+        # Get the directory where this script is located
+        script_dir = Path(__file__).parent
+        exe_suffix = ".exe" if platform.system() == "Windows" else ""
+        renderer_paths = [
+            script_dir / "target" / "release" / f"snapviewer-renderer{exe_suffix}",
+            script_dir / "target" / "debug" / f"snapviewer-renderer{exe_suffix}",
+        ]
 
-    renderer_binary = None
-    for path in renderer_paths:
-        if path.exists():
-            renderer_binary = str(path)
-            break
+        renderer_binary = None
+        for path in renderer_paths:
+            if path.exists():
+                renderer_binary = str(path)
+                break
 
-    if not renderer_binary:
-        # Try to find via cargo
-        print("Renderer binary not found in expected locations, building...")
-        subprocess.run(
-            ["cargo", "build", "--release", "--bin", "snapviewer-renderer"],
-            cwd=script_dir,
-            check=True,
-        )
-        renderer_binary = str(script_dir / "target" / "release" / "snapviewer-renderer")
+        if not renderer_binary:
+            # Try to find via cargo
+            print("Renderer binary not found in expected locations, building...")
+            subprocess.run(
+                ["cargo", "build", "--release", "--bin", "snapviewer-renderer"],
+                cwd=script_dir,
+                check=True,
+            )
+            renderer_binary = str(script_dir / "target" / "release" / f"snapviewer-renderer{exe_suffix}")
 
     cmd = [
         renderer_binary,
@@ -647,6 +654,12 @@ def main():
             raise argparse.ArgumentTypeError(f"'{value}' is an invalid positive int value")
         return ivalue
 
+    parser.add_argument(
+        "--bin",
+        type=str,
+        default=None,
+        help="Path to the renderer binary. Skips auto-detection and cargo build fallback.",
+    )
     parser.add_argument(
         "--log",
         type=str,
