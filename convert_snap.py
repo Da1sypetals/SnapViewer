@@ -2,10 +2,8 @@ import argparse
 import logging
 import os
 import pickle
-import shutil
 import sqlite3
 import sys
-import tempfile
 
 from halo import Halo
 from tqdm import tqdm, trange
@@ -226,28 +224,18 @@ def get_trace(dump: dict, device_id: int):
     return trace[device_id]
 
 
-def make_db(allocs, elems):
+def make_db(allocs, elems, db_path):
     """
-    Create an SQLite database in a temporary file and return the path to it.
+    Create an SQLite database at db_path.
 
     Args:
         allocs (list): List of allocation data
         elems (list): List of element data
-
-    Returns:
-        str: Path to the temporary SQLite database file.
+        db_path (str): Destination path for the database file.
     """
-    logging.info("Creating temporary SQLite database file")
-
-    # Create a temporary file
-    temp_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-    temp_db_path = temp_db_file.name
-    temp_db_file.close()  # Close the file handle as sqlite3.connect will open it
-
-    conn = sqlite3.connect(temp_db_path)
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    # Create table schema
     cursor.execute(DATABASE_SCHEMA)
 
     INSERT_BATCH_SIZE = 10000
@@ -278,8 +266,6 @@ def make_db(allocs, elems):
         conn.commit()
 
     conn.close()
-    logging.info(f"Database written to temporary file: {temp_db_path}")
-    return temp_db_path
 
 
 def convert_pickle_to_dir(pickle_path: str, output_dir: str, device_id: int = 0):
@@ -287,24 +273,21 @@ def convert_pickle_to_dir(pickle_path: str, output_dir: str, device_id: int = 0)
     Process a pickle file and write allocations.json + elements.db to output_dir.
     output_dir must already exist.
     """
-    with Halo(text="Loading pickle file...", spinner="dots"):
+    with Halo(text="Loading pickle file, this may take minutes...", spinner="dots"):
         with open(pickle_path, "rb") as f:
             dump = pickle.load(f)
         trace = get_trace(dump, device_id)
 
-    with Halo(text="Processing trace data...", spinner="dots"):
+    with Halo(text="Processing trace data, this may take minutes...", spinner="dots"):
         allocations, elements = trace_to_allocation_data(trace)
 
-    db_file_path = make_db(allocations, elements)
-    shutil.move(db_file_path, os.path.join(output_dir, DATABASE_FILE_NAME))
+    make_db(allocations, elements, os.path.join(output_dir, DATABASE_FILE_NAME))
 
-    with Halo(text="Serializing allocations to JSON...", spinner="dots"):
+    with Halo(text="Serializing allocations to JSON, this may take minutes...", spinner="dots"):
         alloc_bytes = json.dumps(allocations)
 
-    with open(
-        os.path.join(output_dir, ALLOCATIONS_FILE_NAME), "wb" if isinstance(alloc_bytes, bytes) else "w"
-    ) as f:
-        f.write(alloc_bytes)
+        with open(os.path.join(output_dir, ALLOCATIONS_FILE_NAME), "wb") as f:
+            f.write(alloc_bytes)
 
 
 def cli():
