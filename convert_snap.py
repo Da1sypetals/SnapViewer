@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import tempfile
 
+from halo import Halo
 from tqdm import tqdm, trange
 import orjson as json
 
@@ -286,13 +287,20 @@ def convert_pickle_to_dir(pickle_path: str, output_dir: str, device_id: int = 0)
     Process a pickle file and write allocations.json + elements.db to output_dir.
     output_dir must already exist.
     """
-    with open(pickle_path, "rb") as f:
-        dump = pickle.load(f)
-    trace = get_trace(dump, device_id)
-    allocations, elements = trace_to_allocation_data(trace)
+    with Halo(text="Loading pickle file...", spinner="dots"):
+        with open(pickle_path, "rb") as f:
+            dump = pickle.load(f)
+        trace = get_trace(dump, device_id)
+
+    with Halo(text="Processing trace data...", spinner="dots"):
+        allocations, elements = trace_to_allocation_data(trace)
+
     db_file_path = make_db(allocations, elements)
     shutil.move(db_file_path, os.path.join(output_dir, DATABASE_FILE_NAME))
-    alloc_bytes = json.dumps(allocations)
+
+    with Halo(text="Serializing allocations to JSON...", spinner="dots"):
+        alloc_bytes = json.dumps(allocations)
+
     with open(
         os.path.join(output_dir, ALLOCATIONS_FILE_NAME), "wb" if isinstance(alloc_bytes, bytes) else "w"
     ) as f:
