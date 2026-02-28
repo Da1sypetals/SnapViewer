@@ -25,6 +25,7 @@ from tkinter import font, messagebox, scrolledtext, ttk
 import zmq
 from blake3 import blake3 as blake3_hasher
 
+from color_palette import CUTE, DEFAULT, NIGHT, ColorPalette
 from convert_snap import convert_pickle_to_dir
 
 VERSION = "0"
@@ -149,12 +150,28 @@ class ZeroMQSQLClient:
         self.context.term()
 
 
+def _replace_scrollbar(st: scrolledtext.ScrolledText, style: str) -> None:
+    """Replace the tk.Scrollbar inside a ScrolledText with a ttk.Scrollbar.
+
+    macOS native rendering ignores color options on tk.Scrollbar, so we
+    swap it out for a ttk.Scrollbar which respects the clam theme styles.
+    """
+    old = st.vbar
+    new = ttk.Scrollbar(st.frame, orient=tk.VERTICAL, style=style, command=st.yview)
+    new.pack(side=tk.RIGHT, fill=tk.Y)
+    old.pack_forget()
+    old.destroy()
+    st.vbar = new
+    st.configure(yscrollcommand=new.set)
+
+
 class MessagePanel(ttk.Frame):
     """Panel that displays messages from main thread"""
 
-    def __init__(self, parent):
+    def __init__(self, parent, palette: ColorPalette):
         super().__init__(parent)
         self.parent = parent
+        self.palette = palette
         self.setup_ui()
 
     def setup_ui(self):
@@ -216,7 +233,7 @@ class MessagePanel(ttk.Frame):
 
         # Title
         title_label = ttk.Label(self, text="Messages", font=self.title_font)
-        title_label.configure(foreground="#e91e63")
+        title_label.configure(foreground=self.palette.accent)
         title_label.pack(anchor="w", pady=(0, 10))
 
         # Message display
@@ -227,16 +244,18 @@ class MessagePanel(ttk.Frame):
             wrap=tk.WORD,
             height=20,
             width=60,
-            bg="#fce4ec",
-            fg="#2d2d2d",
-            selectbackground="#e91e63",
-            selectforeground="white",
+            bg=self.palette.text_area_bg,
+            fg=self.palette.text_fg,
+            selectbackground=self.palette.accent,
+            selectforeground=self.palette.select_fg,
             highlightthickness=0,  # Remove highlight border
-            insertbackground="#e91e63",
+            insertbackground=self.palette.accent,
             padx=10,  # Added horizontal padding
             pady=10,  # Added vertical padding
         )
         self.text_widget.pack(fill=tk.BOTH, expand=True)
+        _replace_scrollbar(self.text_widget, "Palette.Vertical.TScrollbar")
+        self.text_widget.frame.configure(bg=self.palette.text_area_bg)
 
         # Set initial message
         self.update_content("""This panel will show:
@@ -292,10 +311,11 @@ class REPLPanel(ttk.Frame):
         "Ctrl+D to quit application.",
     )
 
-    def __init__(self, parent, args):
+    def __init__(self, parent, args, palette: ColorPalette):
         super().__init__(parent)
         self.args = args
         self.parent = parent
+        self.palette = palette
         self.setup_ui()
 
     def setup_ui(self):
@@ -357,7 +377,7 @@ class REPLPanel(ttk.Frame):
 
         # Title
         title_label = ttk.Label(self, text="SQLite REPL", font=self.title_font)
-        title_label.configure(foreground="#e91e63")
+        title_label.configure(foreground=self.palette.accent)
         title_label.pack(anchor="w", pady=(0, 10))
 
         # Output area
@@ -368,26 +388,33 @@ class REPLPanel(ttk.Frame):
             wrap=tk.WORD,
             height=15,
             width=60,
-            bg="#fce4ec",
-            fg="#2d2d2d",
-            selectbackground="#e91e63",
-            selectforeground="white",
+            bg=self.palette.text_area_bg,
+            fg=self.palette.text_fg,
+            selectbackground=self.palette.accent,
+            selectforeground=self.palette.select_fg,
             highlightthickness=0,  # Remove highlight border
-            insertbackground="#e91e63",
+            insertbackground=self.palette.accent,
             padx=10,  # Added horizontal padding
             pady=10,  # Added vertical padding
         )
         self.output_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        _replace_scrollbar(self.output_text, "Palette.Vertical.TScrollbar")
+        self.output_text.frame.configure(bg=self.palette.text_area_bg)
 
         # Input area
         input_frame = ttk.Frame(self)
         input_frame.pack(fill=tk.X, pady=(0, 10))
 
         prompt_label = ttk.Label(input_frame, text="> ", font=self.mono_font)
-        prompt_label.configure(foreground="#e91e63")
+        prompt_label.configure(foreground=self.palette.accent)
         prompt_label.pack(side=tk.LEFT)
 
-        self.input_entry = HistoryEntry(input_frame, font=self.mono_font, width=50)
+        self.input_entry = HistoryEntry(
+            input_frame,
+            font=self.mono_font,
+            width=50,
+            style="REPL.TEntry",
+        )
         self.input_entry.bind("<Return>", self.on_submit)
         self.input_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
@@ -470,9 +497,10 @@ class REPLPanel(ttk.Frame):
 class SnapViewerApp:
     """Main GUI application with ZeroMQ communication"""
 
-    def __init__(self, args, sql_client):
+    def __init__(self, args, sql_client, palette: ColorPalette = CUTE):
         self.args = args
         self.sql_client = sql_client
+        self.palette = palette
         self.root = tk.Tk()
         self.receiver = None
         self.setup_ui(args.dir)
@@ -489,27 +517,71 @@ class SnapViewerApp:
         self.root.geometry("1600x1200")
 
         # Configure colors and styling
-        self.root.configure(bg="#fff5f8")
+        self.root.configure(bg=self.palette.window_bg)
 
         # Configure style for ttk widgets
         style = ttk.Style()
         style.theme_use("clam")
 
+        # Base widget styles — override theme defaults so nothing stays light in dark themes
+        style.configure("TFrame", background=self.palette.window_bg)
+        style.configure(
+            "TLabel",
+            foreground=self.palette.text_fg,
+            background=self.palette.window_bg,
+        )
+        style.configure(
+            "TEntry",
+            foreground=self.palette.text_fg,
+            fieldbackground=self.palette.entry_bg,
+            bordercolor=self.palette.panel_bg,
+            lightcolor=self.palette.panel_bg,
+            darkcolor=self.palette.panel_bg,
+        )
+        style.configure(
+            "REPL.TEntry",
+            foreground=self.palette.text_fg,
+            fieldbackground=self.palette.entry_bg,
+            bordercolor=self.palette.panel_bg,
+            lightcolor=self.palette.panel_bg,
+            darkcolor=self.palette.panel_bg,
+        )
+        style.configure(
+            "TSeparator",
+            background=self.palette.panel_bg,
+        )
+        style.configure(
+            "Palette.Vertical.TScrollbar",
+            background=self.palette.panel_bg,
+            troughcolor=self.palette.window_bg,
+            bordercolor=self.palette.panel_bg,
+            arrowcolor=self.palette.text_fg,
+            darkcolor=self.palette.panel_bg,
+            lightcolor=self.palette.panel_bg,
+        )
+        style.map(
+            "Palette.Vertical.TScrollbar",
+            background=[("active", self.palette.accent), ("!active", self.palette.panel_bg)],
+        )
+
         # Configure ttk styles to match the PyQt6 appearance
         style.configure(
-            "Title.TLabel", foreground="#e91e63", background="#fff5f8", font=("JetBrains Mono", 20, "bold")
+            "Title.TLabel",
+            foreground=self.palette.accent,
+            background=self.palette.window_bg,
+            font=("JetBrains Mono", 20, "bold"),
         )
 
         # Remove the border from the Panel.TFrame style
-        style.configure("Panel.TFrame", background="#f8bbdd", relief="flat", borderwidth=0)
+        style.configure("Panel.TFrame", background=self.palette.panel_bg, relief="flat", borderwidth=0)
 
         # Create main container
         main_frame = ttk.Frame(self.root, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Create panels
-        self.message_panel = MessagePanel(main_frame)
-        self.repl_panel = REPLPanel(main_frame, self.args)
+        self.message_panel = MessagePanel(main_frame, self.palette)
+        self.repl_panel = REPLPanel(main_frame, self.args, self.palette)
 
         # Configure panel styling
         self.message_panel.configure(style="Panel.TFrame")
@@ -628,7 +700,7 @@ def spawn_renderer(args):
     renderer_process = subprocess.Popen(cmd)
 
 
-def run_gui(args):
+def run_gui(args, palette: ColorPalette):
     """Run the GUI application"""
     global app_instance, sql_client
 
@@ -636,7 +708,7 @@ def run_gui(args):
     sql_client = ZeroMQSQLClient("127.0.0.1", args.rep_port)
     sql_client.connect()
 
-    app_instance = SnapViewerApp(args, sql_client)
+    app_instance = SnapViewerApp(args, sql_client, palette=palette)
     app_instance.run()
 
     print("Stopping SnapViewer application...")
@@ -695,6 +767,14 @@ def main():
         help="Resolution ratio for high-DPI displays (e.g., 2.0 for Retina). Default: 1.0",
     )
 
+    parser.add_argument(
+        "--theme",
+        type=str,
+        choices=["cute", "default", "night"],
+        default="default",
+        help="Color theme: cute (pink), default (white), night (dark). Default: cute",
+    )
+
     source_group = parser.add_mutually_exclusive_group(required=True)
     source_group.add_argument(
         "-d",
@@ -746,8 +826,12 @@ def main():
     # Give the renderer a moment to start up and bind its sockets
     time.sleep(0.5)
 
+    # Map theme name to palette
+    palette_map = {"cute": CUTE, "default": DEFAULT, "night": NIGHT}
+    palette = palette_map[args.theme]
+
     # Run the GUI (this is now the main process)
-    run_gui(args)
+    run_gui(args, palette)
 
 
 if __name__ == "__main__":
