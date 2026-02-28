@@ -225,11 +225,11 @@ class MessagePanel(ttk.Frame):
         # Create the actual font objects
         try:
             self.title_font = font.Font(family=font_family, size=20, weight="bold")
-            self.mono_font = font.Font(family=font_family, size=14)
+            self.mono_font = font.Font(family=font_family, size=13)
         except Exception as _:
             # Ultimate fallback
             self.title_font = font.Font(family="Consolas", size=20, weight="bold")
-            self.mono_font = font.Font(family="Consolas", size=14)
+            self.mono_font = font.Font(family="Consolas", size=13)
 
         # Title
         title_label = ttk.Label(self, text="Messages", font=self.title_font)
@@ -579,9 +579,32 @@ class SnapViewerApp:
         main_frame = ttk.Frame(self.root, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
+        # Top bar with toggle button
+        top_bar = ttk.Frame(main_frame)
+        top_bar.pack(fill=tk.X, pady=(0, 6))
+        self._repl_visible = True
+        self._toggle_btn = tk.Button(
+            top_bar,
+            text="Hide REPL",
+            command=self._toggle_repl,
+            bg=self.palette.panel_bg,
+            fg=self.palette.text_fg,
+            activebackground=self.palette.accent,
+            activeforeground=self.palette.select_fg,
+            relief="flat",
+            padx=10,
+            pady=4,
+            cursor="hand2",
+        )
+        self._toggle_btn.pack(side=tk.RIGHT)
+
+        # Panel container (below top bar)
+        self._panel_frame = ttk.Frame(main_frame)
+        self._panel_frame.pack(fill=tk.BOTH, expand=True)
+
         # Create panels
-        self.message_panel = MessagePanel(main_frame, self.palette)
-        self.repl_panel = REPLPanel(main_frame, self.args, self.palette)
+        self.message_panel = MessagePanel(self._panel_frame, self.palette)
+        self.repl_panel = REPLPanel(self._panel_frame, self.args, self.palette)
 
         # Configure panel styling
         self.message_panel.configure(style="Panel.TFrame")
@@ -591,8 +614,8 @@ class SnapViewerApp:
         self.message_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
 
         # Add separator
-        separator = ttk.Separator(main_frame, orient="vertical")
-        separator.pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        self._separator = ttk.Separator(self._panel_frame, orient="vertical")
+        self._separator.pack(side=tk.LEFT, fill=tk.Y, padx=10)
 
         self.repl_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
@@ -606,6 +629,18 @@ class SnapViewerApp:
     def update_message(self, message: str):
         """Update the message panel content"""
         self.message_panel.update_content(message)
+
+    def _toggle_repl(self):
+        if self._repl_visible:
+            self.repl_panel.pack_forget()
+            self._separator.pack_forget()
+            self._toggle_btn.configure(text="Show REPL")
+            self._repl_visible = False
+        else:
+            self._separator.pack(side=tk.LEFT, fill=tk.Y, padx=10)
+            self.repl_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
+            self._toggle_btn.configure(text="Hide REPL")
+            self._repl_visible = True
 
     def close(self):
         """Handle window close event"""
