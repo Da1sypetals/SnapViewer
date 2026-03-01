@@ -1,5 +1,4 @@
 blake3
 halo
 orjson
-pyzmq>=26.0
 tqdm

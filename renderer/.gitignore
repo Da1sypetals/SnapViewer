@@ -1,14 +1,8 @@
-.DS_Store
 __pycache__
 /llm_docs
 /snap
 CLAUDE.md
 /.vscode
-.claude
-
-# For the reference of LLMs, actually not used
-/iced
-/ipc-channel
 
 # Created by https://www.toptal.com/developers/gitignore/api/rust
 # Edit at https://www.toptal.com/developers/gitignore?templates=rust

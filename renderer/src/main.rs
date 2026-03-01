@@ -1,5 +1,6 @@
 use anyhow::Result as AnyhowResult;
 use clap::Parser;
+use ipc_channel::ipc::{self, IpcReceiver, IpcSender};
 use log::info;
 use nalgebra::Vector2;
 use snapviewer::{
@@ -7,8 +8,8 @@ use snapviewer::{
     load::read_allocations,
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,
-    window_transform::{TranslateDir, WindowTransform},
     utils::{format_bytes_precision, get_spinner, memory_usage},
+    window_transform::{TranslateDir, WindowTransform},
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -17,7 +18,7 @@ use three_d::{
     WindowSettings,
 };
 
-/// SnapViewer Renderer - Standalone OpenGL renderer with ZeroMQ IPC
+/// SnapViewer Renderer - Standalone OpenGL renderer with IPC
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -29,13 +30,9 @@ struct Args {
     #[arg(long, value_name = "WIDTH HEIGHT", num_args = 2, default_values_t = [2400, 1000])]
     res: Vec<u32>,
 
-    /// ZeroMQ PUB socket port (Renderer -> UI)
-    #[arg(long, default_value_t = 5555)]
-    pub_port: u16,
-
-    /// ZeroMQ REP socket port (UI -> Renderer)
-    #[arg(long, default_value_t = 5556)]
-    rep_port: u16,
+    /// IPC bootstrap server name (provided by the UI process)
+    #[arg(long)]
+    ipc_bootstrap: String,
 
     /// Log level
     #[arg(long, default_value_t = String::from("info"))]
@@ -50,8 +47,9 @@ struct RendererState {
     db_ptr: u64,
     resolution: (u32, u32),
     resolution_ratio: f64,
-    pub_socket: zmq::Socket,
-    rep_socket: zmq::Socket,
+    event_tx: IpcSender<String>,
+    sql_rx: IpcReceiver<String>,
+    reply_tx: IpcSender<String>,
 }
 
 fn main() -> AnyhowResult<()> {
@@ -95,20 +93,14 @@ fn main() -> AnyhowResult<()> {
     println!("Found {} entries", allocs.len());
     println!("Memory after init: {} MiB", memory_usage());
 
-    // Create ZeroMQ context
-    let context = zmq::Context::new();
+    // Connect to the UI's IPC bootstrap server and send channel endpoints
+    let (event_tx, event_rx) = ipc::channel::<String>()?;
+    let (sql_tx, sql_rx) = ipc::channel::<String>()?;
+    let (reply_tx, reply_rx) = ipc::channel::<String>()?;
 
-    // Create PUB socket for sending click events to UI
-    let pub_socket = context.socket(zmq::SocketType::PUB)?;
-    let pub_endpoint = format!("tcp://*:{}", args.pub_port);
-    pub_socket.bind(&pub_endpoint)?;
-    println!("PUB socket bound to {}", pub_endpoint);
-
-    // Create REP socket for receiving SQL commands from UI
-    let rep_socket = context.socket(zmq::SocketType::REP)?;
-    let rep_endpoint = format!("tcp://*:{}", args.rep_port);
-    rep_socket.bind(&rep_endpoint)?;
-    println!("REP socket bound to {}", rep_endpoint);
+    type UiChannels = (IpcReceiver<String>, IpcSender<String>, IpcReceiver<String>);
+    let bootstrap_sender = IpcSender::<UiChannels>::connect(args.ipc_bootstrap)?;
+    bootstrap_sender.send((event_rx, sql_tx, reply_rx))?;
 
     // Initialize render loop
     println!(
@@ -128,8 +120,9 @@ fn main() -> AnyhowResult<()> {
         db_ptr: db as *mut AllocationDatabase as u64,
         resolution,
         resolution_ratio: args.resolution_ratio,
-        pub_socket,
-        rep_socket,
+        event_tx,
+        sql_rx,
+        reply_tx,
     };
 
     run_render_loop(state, render_loop, cpu_mesh)?;
@@ -195,21 +188,21 @@ fn run_render_loop(
         db_ptr,
         resolution: _,
         resolution_ratio: _,
-        pub_socket,
-        rep_socket,
+        event_tx,
+        sql_rx,
+        reply_tx,
     } = state;
 
     window.render_loop(move |frame_input| {
         let resolution_ratio = resolution_ratio; // Force move into closure
 
-        // Handle incoming ZeroMQ messages (non-blocking)
-        if let Ok(bytes) = rep_socket.recv_bytes(zmq::DONTWAIT) {
-            let command = String::from_utf8_lossy(&bytes);
+        // Handle incoming IPC messages (non-blocking)
+        if let Ok(command) = sql_rx.try_recv() {
             let response = match handle_sql_command(db_ptr, &command) {
                 Ok(result) => result,
                 Err(e) => format!("(!) SQL execution Error\n{}", e),
             };
-            let _ = rep_socket.send(response.as_bytes(), 0);
+            let _ = reply_tx.send(response);
         }
 
         // Handle events
@@ -243,8 +236,8 @@ fn run_render_loop(
                                         rl.allocation_info(db_ptr, idx)
                                     );
 
-                                    // Send to UI via ZeroMQ
-                                    let _ = pub_socket.send(msg.as_bytes(), 0);
+                                    // Send to UI via IPC
+                                    let _ = event_tx.send(msg);
 
                                     rl.show_alloc(&context, idx);
                                 }
@@ -275,8 +268,8 @@ fn run_render_loop(
                                 rl.trace_geom.xworld2timestamp(cursor_world_pos.x),
                             );
 
-                            // Send to UI via ZeroMQ
-                            let _ = pub_socket.send(msg.as_bytes(), 0);
+                            // Send to UI via IPC
+                            let _ = event_tx.send(msg);
                         }
                         MouseButton::Middle => {}
                     }

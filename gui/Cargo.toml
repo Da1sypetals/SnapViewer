@@ -1,0 +1,16 @@
+[package]
+name = "snapviewer-gui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# iced = { path = "../iced", features = ["tokio", "sipper"] }
+iced = { version = "0.14", features = ["tokio", "sipper"] }
+tokio = { version = "1", features = ["full"] }
+ipc-channel = "0.21"
+serde = { version = "1", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
+blake3 = "1"
+serde_json = "1"
+anyhow = "1"
+chrono = "0.4"

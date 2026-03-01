@@ -1,54 +1,49 @@
 # Snapviewer
 
-A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_viz with rich features. Display large snapshots smoothly! 
+A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_viz with rich features. Display large snapshots smoothly!
 
 Tested on Windows and macOS.
 
-![alt text](snapviewer.gif)
+![alt text](assets/snapviewer.gif)
 
-## Usage:
-- You need Rust toolchain and Python installed.
-- First you need a virtual environment (via `venv` or `conda`). Here we use `conda`:
-  - Activate your environment
-    ```bash
-    conda activate base
-    ```
-  - Install dependencies
-    ```bash
-    pip install -r requirements.txt
-    ```
-- Compile binary
-  ```bash
-  cargo build --release --bin snapviewer-renderer --no-default-features
-  ```
+## Usage
 
-- Run
+You need Rust toolchain installed. Python is only required if you want to use `.pickle` files directly (for preprocessing).
 
-  `-rr` is for `--resolution-ratio`, used to deal with the rendering pattern of Apple's retina display. You probably need `-rr 2.0` if you are using MacBook.
+### Run
 
-  **Option A: Pass the `.pickle` directly.** Preprocessing artifacts are cached at `~/.snapviewer_cache/` and reused on subsequent runs.
-  ```bash
-  python gui.py --pickle snap/large.pickle --res 1200 500 -rr 2.0
-  ```
+`-r` is for `--resolution-ratio`, used to deal with the rendering pattern of Apple's retina display. You probably need `-r 2.0` if you are using MacBook.
 
-  **Option B: Pre-process manually and pass the directory.**
-  ```bash
-  # 1. Convert snapshot — outputs allocations.json and elements.db under the directory
-  python convert_snap.py -i snap/large.pickle -o ./large
+**Option A: Pass the `.pickle` directly.** Preprocessing artifacts are cached at `~/.snapviewer_cache/` and reused on subsequent runs. Requires Python.
+```bash
+cargo run -r --bin snapviewer-gui -- --pickle assets/memory.pickle --res 1200 500 -r 2
+```
 
-  # 2. Run
-  python gui.py --dir ./large --res 1200 500 -rr 2.0
-  ```
+**Option B: Pre-process manually and pass the directory.**
+```bash
+# 1. Convert snapshot — outputs allocations.json and elements.db under the directory
+python convert_snap.py -i assets/memory.pickle -o ./snap
+
+# 2. Run (no Python required)
+cargo run -r --bin snapviewer-gui -- --dir ./snap --res 2400 1000 -r 2.0
+```
+
+See `cargo run -r --bin snapviewer-gui -- --help` for more options.
 
 > Warning: This software is in pre-alpha stage. Everything including snapshot format, data storing/loading logic is under frequent change.
 
-    
+## Controls
 
-### Controls
-
+### Renderer Window
 - Pan: WASD / Left Mouse Drag
 - Zoom: Mouse Wheel
 - (Ctrl + Left click) on an allocation for detailed info about it
+
+### GUI
+- Ctrl+D / Ctrl+Q: Quit application
+- Arrow Up/Down: Navigate command history in REPL
+- Theme picker in top bar to change color scheme
+- "Hide REPL" / "Show REPL" button to toggle the REPL panel
 
 
 ## Troubleshoot
@@ -57,6 +52,4 @@ Tested on Windows and macOS.
 
 ## Notes
 - Minimal dependency is **not** a goal.
-- On macos, TKinter is required to run on main thread; while on all platforms the renderer is also required to run on main thread. This means we need multiple processes if we want to do cross platform.
-- todo:
-  - test this zmq-based impl on linux
+- The application uses a multi-process architecture: the GUI runs in one process and communicates with the renderer subprocess via IPC.

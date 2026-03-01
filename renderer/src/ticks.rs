@@ -15,7 +15,7 @@ pub struct TickGenerator<'a> {
 impl<'a> TickGenerator<'a> {
     pub fn jbmono(resolution: (u32, u32), fontsize_px: f32) -> Self {
         let generator = TextGenerator::new(
-            include_bytes!("../assets/JetBrainsMono-Medium.ttf"),
+            include_bytes!("../../assets/JetBrainsMono-Medium.ttf"),
             0,
             fontsize_px,
         )
