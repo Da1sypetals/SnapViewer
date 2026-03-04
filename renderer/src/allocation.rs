@@ -19,17 +19,22 @@ impl Display for Allocation {
         // Callstack first
 
         // Other details in their original order
-        writeln!(f, "|- Size: {}", format_bytes(self.size as i64))?;
-        writeln!(f, "|- Peak Memory: {}", format_bytes(self.peak_mem as i64))?;
-        writeln!(f, "|- Peak Timestamps: {:?}", self.peak_timestamps)?;
+        writeln!(f, "- Size: {}", format_bytes(self.size as i64))?;
         writeln!(
             f,
-            "|- Timesteps: start {}, stop {}",
+            "- Peak Memory: {} ({} bytes)",
+            format_bytes(self.peak_mem as i64),
+            self.peak_mem
+        )?;
+        writeln!(f, "- Peak Timestamps: {:?}", self.peak_timestamps)?;
+        writeln!(
+            f,
+            "- Timesteps: start {}, stop {}",
             self.timesteps.first().unwrap_or(&0),
             self.timesteps.last().unwrap_or(&0)
         )?;
-        writeln!(f, "|- Offsets: omitted")?;
-        // Or print offsets if desired:
+        writeln!(f, "- Offsets: omitted")?;
+        // Or print offtsets if desired:
         // writeln!(f, "└── Offsets: {:?}", self.offsets)?;
 
         Ok(())

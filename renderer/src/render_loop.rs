@@ -141,6 +141,6 @@ impl RenderLoop {
             .unwrap();
         let callstack = query_result.splitn(2, "callstack:").skip(1).next().unwrap();
 
-        format!("{}|- callstack:\n{}", header, callstack)
+        format!("{}- callstack:\n{}", header, callstack)
     }
 }
