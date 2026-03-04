@@ -10,6 +10,14 @@ Tested on Windows and macOS.
 
 You need Rust toolchain installed. Python is only required if you want to use `.pickle` files directly (for preprocessing).
 
+### Build
+
+There are 2 binaries under this project, please make sure to build both of them:
+
+```bash
+cargo build --release
+```
+
 ### Run
 
 `-r` is for `--resolution-ratio`, used to deal with the rendering pattern of Apple's retina display. You probably need `-r 2.0` if you are using MacBook.
