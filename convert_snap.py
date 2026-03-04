@@ -29,17 +29,19 @@ DATABASE_SCHEMA = """CREATE TABLE allocs (
 );"""
 
 
-def trace_to_allocation_data(device_trace):
+def trace_to_allocation_data(device_trace, segments, device_id):
     """
     Convert device trace into allocation timeline and elements.
 
     Args:
         device_trace (list): A list of memory allocation/free events for a device.
+        segments (list): Snapshot segments for supplementing initially-allocated blocks.
+        device_id (int): Device index, used to filter segments.
 
     Returns:
         tuple: (allocations, elements)
     """
-    alloc_data = process_alloc_data(device_trace)
+    alloc_data = process_alloc_data(device_trace, segments, device_id)
     allocations = alloc_data["allocations_over_time"][:-1]  # Exclude summarized entry
     elements = alloc_data["elements"]
     return allocations, elements
@@ -53,13 +55,14 @@ def format_callstack(frames: list) -> str:
     return "\n".join(map(format_frame, enumerate(frames)))
 
 
-def process_alloc_data(device_trace):
+def process_alloc_data(device_trace, segments, device_id):
     """
     Processes the device trace into a structured format showing allocations over time.
 
     Args:
         device_trace (list): List of memory events.
-        plot_segments (bool): Whether to consider segment-based allocations.
+        segments (list): Snapshot segments for supplementing initially-allocated blocks.
+        device_id (int): Device index, used to filter segments.
 
     Returns:
         dict: A dictionary containing memory timeline data.
@@ -73,15 +76,12 @@ def process_alloc_data(device_trace):
     free_actions = {"free", "free_completed"}
 
     logging.info("Processing events")
-    for idx, event in tqdm(enumerate(device_trace)):
+    for event in tqdm(device_trace):
         if event["action"] == "alloc":
-            # If current action is allocation, Register allocation event
             elements.append(event)
             addr_to_alloc[event["addr"]] = len(elements) - 1
             actions.append(len(elements) - 1)
         elif event["action"] in free_actions:
-            # If current action is free
-            # Handle free events, potentially unmatched ones
             if event["addr"] in addr_to_alloc:
                 actions.append(addr_to_alloc[event["addr"]])
                 del addr_to_alloc[event["addr"]]
@@ -90,17 +90,46 @@ def process_alloc_data(device_trace):
                 initially_allocated.append(len(elements) - 1)
                 actions.append(len(elements) - 1)
 
+    # Supplement initially_allocated with active_allocated blocks from segments
+    # that had no alloc event in the trace (they were allocated before recording started).
+    # Note: raw pickle blocks don't have an 'addr' field; addresses must be computed
+    # by walking the segment starting from seg["address"], matching annotate_snapshot in reference.js.
+    logging.info("Supplementing initially allocated blocks from segments")
+    for seg in tqdm(segments):
+        if seg["device"] != device_id:
+            continue
+        addr = seg["address"]
+        for b in seg.get("blocks", []):
+            b_addr = addr
+            addr += b["size"]
+            if b["state"] == "active_allocated" and b_addr not in addr_to_alloc:
+                element = {
+                    "action": "alloc",
+                    "addr": b_addr,
+                    "size": b.get("requested_size", b["size"]),
+                    "frames": b.get("frames", []),
+                    "stream": seg["stream"],
+                    "version": b.get("version", 0),
+                }
+                elements.append(element)
+                initially_allocated.append(len(elements) - 1)
+
+    initially_allocated.reverse()
+
+    # Edge case: no actions but there are pre-existing allocations.
+    # Push one initially_allocated elem into actions so the graph isn't blank.
+    if len(actions) == 0 and len(initially_allocated) > 0:
+        actions.append(initially_allocated.pop())
+
     # Data structures for building the memory timeline
     current = []
     current_data = []
     data = []
     max_size = 0
     total_mem = 0
-    total_summarized_mem = 0
     timestep = 0
     max_at_time = []
 
-    # Special summarized memory track
     summarized_mem = {
         "elem": "summarized",
         "timesteps": [],
@@ -110,61 +139,58 @@ def process_alloc_data(device_trace):
     }
 
     def advance(n):
-        """Advance the timeline by `n` steps, tracking summary usage."""
         nonlocal timestep
         summarized_mem["timesteps"].append(timestep)
         summarized_mem["offsets"].append(total_mem)
-        summarized_mem["size"].append(total_summarized_mem)
+        summarized_mem["size"].append(0)
         timestep += n
         for _ in range(n):
-            max_at_time.append(total_mem + total_summarized_mem)
+            max_at_time.append(total_mem)
 
-    logging.info("Processing initial allocations")
-    for elem in tqdm(reversed(initially_allocated)):
-        element = elements[elem]
+    def add_allocation(elem):
+        nonlocal total_mem
+        element_obj = elements[elem]
+        size = element_obj["size"]
         current.append(elem)
-        data_entry = {
+        e = {
             "elem": elem,
             "timesteps": [timestep],
             "offsets": [total_mem],
-            "size": element["size"],
+            "size": size,
             "color": elem,
         }
-        current_data.append(data_entry)
-        data.append(data_entry)
-        total_mem += element["size"]
+        current_data.append(e)
+        data.append(e)
+        total_mem += size
+
+    logging.info("Processing initial allocations")
+    for elem in tqdm(initially_allocated):
+        add_allocation(elem)
 
     logging.info("Processing allocation/free actions")
     for elem in tqdm(actions):
-        element = elements[elem]
-        size = element["size"]
+        size = elements[elem]["size"]
 
-        # Attempt to match element in current allocations
-        try:
-            idx = next(i for i in reversed(range(len(current))) if current[i] == elem)
-        except StopIteration:
-            # New allocation
-            current.append(elem)
-            data_entry = {
-                "elem": elem,
-                "timesteps": [timestep],
-                "offsets": [total_mem],
-                "size": size,
-                "color": elem,
-            }
-            current_data.append(data_entry)
-            data.append(data_entry)
-            total_mem += size
+        # Find last occurrence of elem in current (equivalent to JS findLastIndex)
+        idx = -1
+        for i in reversed(range(len(current))):
+            if current[i] == elem:
+                idx = i
+                break
+
+        if idx == -1:
+            # First time seeing this elem: allocate
+            add_allocation(elem)
             advance(1)
         else:
-            # Freeing memory
+            # Second time: free
+            advance(1)
             removed = current_data[idx]
             removed["timesteps"].append(timestep)
             removed["offsets"].append(removed["offsets"][-1])
             del current[idx]
             del current_data[idx]
 
-            # Adjust offsets for elements after the removed one
             if idx < len(current_data):
                 for entry in current_data[idx:]:
                     entry["timesteps"].append(timestep)
@@ -174,16 +200,14 @@ def process_alloc_data(device_trace):
                 advance(3)
 
             total_mem -= size
-            advance(1)
 
-        max_size = max(max_size, total_mem + total_summarized_mem)
+        max_size = max(total_mem, max_size)
 
     # Close the timeline for all still-allocated blocks
     for entry in tqdm(current_data):
         entry["timesteps"].append(timestep)
         entry["offsets"].append(entry["offsets"][-1])
 
-    # Append summary entry to timeline
     data.append(summarized_mem)
 
     return {
@@ -279,7 +303,7 @@ def convert_pickle_to_dir(pickle_path: str, output_dir: str, device_id: int = 0)
         trace = get_trace(dump, device_id)
 
     with Halo(text="Processing trace data, this may take minutes...", spinner="dots"):
-        allocations, elements = trace_to_allocation_data(trace)
+        allocations, elements = trace_to_allocation_data(trace, dump["segments"], device_id)
 
     make_db(allocations, elements, os.path.join(output_dir, DATABASE_FILE_NAME))
 

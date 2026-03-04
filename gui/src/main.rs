@@ -67,7 +67,7 @@ fn compute_file_hash(path: &Path) -> Result<String> {
     Ok(hash.to_hex().to_string())
 }
 
-const VERSION: &str = "0";
+const VERSION: &str = "2026-03-04";
 
 fn get_or_create_cache(pickle_path: &Path, device_id: u32) -> Result<PathBuf> {
     let cache_root = home_dir().join(".snapviewer_cache");
