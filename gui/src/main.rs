@@ -76,7 +76,7 @@ fn get_or_create_cache(pickle_path: &Path, device_id: u32) -> Result<PathBuf> {
     let cache_key = format!("{file_hash}_dev{device_id}_v{VERSION}");
     let cache_dir = cache_root.join(&cache_key);
     let alloc_file = cache_dir.join("allocations.json");
-    let db_file = cache_dir.join("elements.db");
+    let db_file = cache_dir.join("elements.parquet");
 
     if alloc_file.exists() && db_file.exists() {
         println!("Cache hit:");

@@ -2,11 +2,12 @@ import argparse
 import logging
 import os
 import pickle
-import sqlite3
 import sys
 
+import pyarrow as pa
+import pyarrow.parquet as pq
 from halo import Halo
-from tqdm import tqdm, trange
+from tqdm import tqdm
 import orjson as json
 
 # Configure logging to output to stdout with timestamps and log level
@@ -19,14 +20,7 @@ logging.basicConfig(
 
 # Constants for output file names
 ALLOCATIONS_FILE_NAME = "allocations.json"
-DATABASE_FILE_NAME = "elements.db"
-DATABASE_SCHEMA = """CREATE TABLE allocs (
-    idx INTEGER PRIMARY KEY,
-    size INTEGER,
-    start_time INTEGER,
-    end_time INTEGER,
-    callstack TEXT
-);"""
+DATABASE_FILE_NAME = "elements.parquet"
 
 
 def trace_to_allocation_data(device_trace, segments, device_id):
@@ -248,53 +242,51 @@ def get_trace(dump: dict, device_id: int):
     return trace[device_id]
 
 
-def make_db(allocs, elems, db_path):
+def make_parquet(allocs, elems, parquet_path):
     """
-    Create an SQLite database at db_path.
+    Write allocation metadata to a Parquet file at parquet_path.
 
     Args:
         allocs (list): List of allocation data
         elems (list): List of element data
-        db_path (str): Destination path for the database file.
+        parquet_path (str): Destination path for the Parquet file.
     """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    idx_col = []
+    size_col = []
+    start_time_col = []
+    end_time_col = []
+    callstack_col = []
 
-    cursor.execute(DATABASE_SCHEMA)
+    for i, (alloc, elem) in tqdm(enumerate(zip(allocs, elems)), total=len(allocs)):
+        idx_col.append(i)
+        size_col.append(alloc["size"])
+        start_time_col.append(alloc["timesteps"][0])
+        end_time_col.append(alloc["timesteps"][-1])
+        callstack_col.append(format_callstack(elem["frames"]))
 
-    INSERT_BATCH_SIZE = 10000
-    for i in trange(0, len(allocs), INSERT_BATCH_SIZE):
-        start_idx = i
-        end_idx = min(i + INSERT_BATCH_SIZE, len(allocs))
-
-        def insert_data(idx, alloc, elem):
-            return (
-                idx,
-                alloc["size"],
-                alloc["timesteps"][0],
-                alloc["timesteps"][-1],
-                format_callstack(elem["frames"]),
-            )
-
-        cursor.executemany(
-            "INSERT INTO allocs VALUES (?, ?, ?, ?, ?)",
-            map(
-                lambda x: insert_data(*x),
-                zip(
-                    range(start_idx, end_idx),
-                    allocs[start_idx:end_idx],
-                    elems[start_idx:end_idx],
-                ),
-            ),
-        )
-        conn.commit()
-
-    conn.close()
+    schema = pa.schema([
+        ("idx", pa.int64()),
+        ("size", pa.int64()),
+        ("start_time", pa.int64()),
+        ("end_time", pa.int64()),
+        ("callstack", pa.string()),
+    ])
+    table = pa.Table.from_pydict(
+        {
+            "idx": idx_col,
+            "size": size_col,
+            "start_time": start_time_col,
+            "end_time": end_time_col,
+            "callstack": callstack_col,
+        },
+        schema=schema,
+    )
+    pq.write_table(table, parquet_path)
 
 
 def convert_pickle_to_dir(pickle_path: str, output_dir: str, device_id: int = 0):
     """
-    Process a pickle file and write allocations.json + elements.db to output_dir.
+    Process a pickle file and write allocations.json + elements.parquet to output_dir.
     output_dir must already exist.
     """
     with Halo(text="Loading pickle file, this may take minutes...", spinner="dots"):
@@ -305,7 +297,7 @@ def convert_pickle_to_dir(pickle_path: str, output_dir: str, device_id: int = 0)
     with Halo(text="Processing trace data, this may take minutes...", spinner="dots"):
         allocations, elements = trace_to_allocation_data(trace, dump["segments"], device_id)
 
-    make_db(allocations, elements, os.path.join(output_dir, DATABASE_FILE_NAME))
+    make_parquet(allocations, elements, os.path.join(output_dir, DATABASE_FILE_NAME))
 
     with Halo(text="Serializing allocations to JSON, this may take minutes...", spinner="dots"):
         alloc_bytes = json.dumps(allocations)

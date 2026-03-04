@@ -1,5 +1,5 @@
 pub const ALLOCATIONS_FILE_NAME: &str = "allocations.json";
-pub const ELEMENT_DB_FILENAME: &str = "elements.db";
+pub const ELEMENT_DB_FILENAME: &str = "elements.parquet";
 pub const UNITS: [&str; 8] = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"];
 pub const INTERVALS: [f64; 20] = [
     1.0_f64,

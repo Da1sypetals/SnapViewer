@@ -1,5 +1,5 @@
 use crate::{
-    allocation::Allocation, database::sqlite::AllocationDatabase, geometry::TraceGeometry,
+    allocation::Allocation, database::parquet::AllocationDatabase, geometry::TraceGeometry,
     render_data, utils::memory_usage,
 };
 use std::sync::Arc;
@@ -135,11 +135,7 @@ impl RenderLoop {
         let db = unsafe { &mut *(db_ptr as *mut AllocationDatabase) };
         let header = self.trace_geom.raw_allocs[idx].to_string();
 
-        // Everybody told me not to use interpolated string, but this is not a security sensitive app.
-        let query_result = db
-            .execute(&format!("SELECT callstack FROM allocs WHERE idx = {}", idx))
-            .unwrap();
-        let callstack = query_result.splitn(2, "callstack:").skip(1).next().unwrap();
+        let callstack = db.get_callstack(idx).unwrap();
 
         format!("{}- callstack:\n{}", header, callstack)
     }

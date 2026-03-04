@@ -4,7 +4,7 @@ use ipc_channel::ipc::{self, IpcReceiver, IpcSender};
 use log::info;
 use nalgebra::Vector2;
 use snapviewer::{
-    database::sqlite::AllocationDatabase,
+    database::parquet::AllocationDatabase,
     load::read_allocations,
     render_loop::{FpsTimer, RenderLoop},
     ticks::TickGenerator,

@@ -2,3 +2,4 @@ blake3
 halo
 orjson
 tqdm
+pyarrow
