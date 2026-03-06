@@ -1,6 +1,6 @@
 # Snapviewer
 
-A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_viz with rich features. Display large snapshots smoothly!
+A PyTorch memory snapshot viewer alternative to https://docs.pytorch.org/memory_viz with rich features. Explore large snapshots smoothly!
 
 Tested on Windows and macOS.
 
@@ -8,11 +8,13 @@ Tested on Windows and macOS.
 
 ## Usage
 
-You need Rust toolchain installed. Python is only required if you want to use `.pickle` files directly (for preprocessing).
+You need Rust toolchain installed. Python is required if you want to use `.pickle` files directly (for preprocessing).
+
+> We are waiting for [a possible enhancement on PyTorch's memory trace format](https://github.com/pytorch/pytorch/issues/176288). If this can be implemented, probably we will completely eliminate Python code from this project.
 
 ### Build
 
-There are 2 binaries under this project, please make sure to build both of them:
+There are 2 binaries under this project, please make sure to build **both** of them:
 
 ```bash
 cargo build --release
